@@ -7,4 +7,4 @@ The code is based on the works
 
 
 To install, enter the directory and use the command
-pip3 install -e .
+`pip3 install -e .`
