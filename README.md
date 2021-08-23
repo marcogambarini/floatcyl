@@ -6,3 +6,5 @@ The code is based on the works
 - B. F. M. Child, *On the configuration of arrays of floating wave energy converters*, PhD Thesis, University of Edinburgh, 2011
 
 
+To install, enter the directory and use the command
+pip3 install -e .
