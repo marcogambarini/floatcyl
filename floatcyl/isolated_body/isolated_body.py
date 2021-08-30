@@ -4,6 +4,7 @@ import numpy as np
 from scipy.special import *
 
 
+
 def isolated_body_matrices_diff(n, m, k, kq, h, d, a):
     """Compute the isolated body diffraction matrices E, G and vector u
 
