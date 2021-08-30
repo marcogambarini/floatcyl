@@ -34,3 +34,9 @@ body = fcl.Cylinder(radius=a, draft=draft, depth=depth, k=k,
 
 body.compute_diffraction_properties()
 body.compute_radiation_properties()
+
+
+# 3) define array
+cylArray = fcl.Array()
+for ii in range(Nbodies):
+    cylArray.add_body(0., ii*spacing, body)
