@@ -24,4 +24,12 @@ print('Wavelength = ', 2*np.pi/k, ' m')
 Nq = 50 #number of evanescent modes
 kq = fcl.imag_disp_rel(omega, depth, Nq)
 
+
 Nn = 5 #number of progressive modes
+
+
+# 2) isolated body behaviour
+body = fcl.Cylinder(radius=a, draft=draft, depth=depth, k=k,
+                    kq=kq, Nn=Nn, Nq=Nq, omega=omega)
+
+body.compute_diffraction_properties()
