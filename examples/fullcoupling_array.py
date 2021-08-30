@@ -33,3 +33,4 @@ body = fcl.Cylinder(radius=a, draft=draft, depth=depth, k=k,
                     kq=kq, Nn=Nn, Nq=Nq, omega=omega)
 
 body.compute_diffraction_properties()
+body.compute_radiation_properties()

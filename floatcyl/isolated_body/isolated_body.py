@@ -8,7 +8,14 @@ from floatcyl.utils.utils import *
 class Cylinder(object):
 
     def __init__(self, radius=1., draft=0.4, depth=30., k=0.01,
-                kq=[0.4], Nn=5, Nq=10, omega=3.):
+                kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
+                g = 9.81):
+        """Simple constructor with kwargs.
+        The choice of kwargs is just for readability. They are all
+        always needed. Actually, some of them (depth, k, omega)
+        are attributes of the problem, not of the object. This should
+        be fixed later for better usability.
+        """
         self.radius = radius
         self.draft = draft
         self.depth = depth
@@ -17,11 +24,15 @@ class Cylinder(object):
         self.Nn = Nn
         self.Nq = Nq
         self.omega = omega
+        self.water_density = water_density
+        self.g = g
 
         self.clearance = depth-draft
 
 
     def compute_diffraction_properties(self):
+        """Computes single body diffraction matrices by calling
+        the proper subroutines."""
 
         Nq = self.Nq
         Nn = self.Nn
@@ -42,10 +53,70 @@ class Cylinder(object):
                 C[:, n, m] = c_diff[:,0]
 
         #External diffraction matrix B
-        B = self.body_diffraction_matrix(D)
+        self.B = self.body_diffraction_matrix(D)
 
         #Internal diffraction matrix Btilde
-        Btilde = self.body_diffraction_matrix_internal(C)
+        self.Btilde = self.body_diffraction_matrix_internal(C)
+
+
+    def compute_radiation_properties(self):
+        """Computes single body radiation matrices by calling
+        the proper subroutines."""
+
+        a = self.radius
+        k = self.k
+        kq = self.kq
+        h = self.clearance
+        Nn = self.Nn
+        Nq = self.Nq
+        depth = self.depth
+        omega = self.omega
+        draft = self.draft
+        rho = self.water_density
+
+
+
+        #Y
+        self.Y = self.heave_forces_basis()
+
+
+
+
+        #R, Rtilde
+        E, u, G = self.isolated_body_matrices_diff(0, 0)
+        #we do not need u here
+        del u
+
+        q, s = self.isolated_body_matrices_rad()
+
+
+
+        A = np.eye(np.shape(E)[0]) + E@G
+        b = q - E@s
+
+        #solve the system
+        c_R = np.linalg.solve(A, b)
+        d_R = s + G@c_R
+
+        self.R = self.radiated_wave_coeffs(d_R)
+        self.Rtilde = self.radiated_wave_coeffs_internal(c_R)
+
+
+
+
+
+        # W (forces for dynamic coupling)
+        #equiv area is eq. (3.150)
+        equiv_area = -1j * omega*omega*np.pi/(2*self.g*h) * (
+                    h*h*a*a - 0.25*a*a*a*a) + self.Rtilde.T@self.Y
+
+
+        #mass obtained from hydrostatic balance
+        self.mass = np.pi * a*a * draft * rho
+        #hydrostatic stiffness from geometry
+        self.hyd_stiff = np.pi*a*a*rho*self.g
+
+        self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega - self.hyd_stiff)
 
 
 
@@ -170,7 +241,7 @@ class Cylinder(object):
         d = self.depth
         a = self.radius
         omega = self.omega
-
+        g = self.g
 
         #initialization
         Nq = np.shape(kq)[0] + 1
@@ -330,3 +401,120 @@ class Cylinder(object):
 
 
         return B
+
+    def heave_forces_basis(self):
+        """Computes the integrals of the internal problem basis function on the
+        lower surface of the cylinder. Heave forces are combinations of these terms.
+
+        Parameters
+        ----------
+        a: cylinder radius
+        h: cylinder clearance (elevation of lower surface over the sea bottom)
+        Nn: number of angular/radial modes
+        Nm: number of evanescent modes
+
+        Returns
+        -------
+        Y: array of shape ((2Nn + 1)(Nm + 1) x 1)
+        """
+
+        a = self.radius
+        h = self.clearance
+        Nn = self.Nn
+        Nm = self.Nq
+
+        Y = np.zeros(((2*Nn+1)*(Nm+1),1))
+
+        m = 0
+        n = 0
+        Y[vector_index(n, m, Nn, Nm), 0] = np.pi * a * a
+
+        for m in range(1, Nm+1):
+            Y[vector_index(n, m, Nn, Nm), 0] = 1/i0(m*np.pi*a/h) * (
+            ((-1)**m * 2 * a * h * i1(m*np.pi*a/h)) / m)
+
+        return Y
+
+
+    def radiated_wave_coeffs(self, D):
+        """Computes the coefficients R of radiated wave coefficients
+        for the external problem (useful for potential/free surface recovery)
+
+        Parameters
+        ----------
+        D: vector of single-body radiation results
+        k: progressive wavenumber (real root of the dispersion equation)
+        kq: array of evanescent wavenumbers (imaginary roots of the
+            dispersion equation), array of shape (Nm x 1)
+        d: water depth
+        a: radius
+        Nl: number of angular/radial modes
+        Nq: number of evanescent modes
+
+        Returns
+        -------
+        R: array of shape ((2Nl + 1)(Nm + 1) x 1)
+        """
+
+        k = self.k
+        kq = self.kq
+        d = self.depth
+        a = self.radius
+        Nl = self.Nn
+        Nq = self.Nq
+
+        sqrtN0 = np.sqrt(0.5*(1 + (np.sinh(2*k*d)) / (2*k*d) ))
+        sqrtNq = np.sqrt(0.5*(1 + (np.sin(2*kq*d)) / (2*kq*d) ))
+
+
+        R = np.zeros(((2*Nl + 1)*(Nq+1), 1), dtype=complex)
+
+        l = 0
+        q = 0
+        R[vector_index(l, q, Nl, Nq), 0] = hankel1(0, k*a) * (
+                    (D[0] * np.cosh(k*d)) / (h1vp(0, k*a) * sqrtN0))
+
+        for q in range(1, Nq+1):
+            R[vector_index(l, q, Nl, Nq), 0] = k0(kq[q-1]*a) * (
+                    D[q] / (kvp(0, kq[q-1]*a)*sqrtNq[q-1]))
+
+        return R
+
+
+    def radiated_wave_coeffs_internal(self, C):
+        """Computes the coefficients Rtilde of radiated wave coefficients
+        for the internal problem (useful for force computation)
+
+        Parameters
+        ----------
+        C: vector of single-body radiation results
+        k: progressive wavenumber (real root of the dispersion equation)
+        kq: array of evanescent wavenumbers (imaginary roots of the
+            dispersion equation), array of shape (Nm x 1)
+        h: clearance (elevation of lower surface over the sea bottom)
+        a: radius
+        Nl: number of angular/radial modes
+        Ns: number of evanescent modes
+
+        Returns
+        -------
+        R: array of shape ((2Nl + 1)(Nm + 1) x 1)
+        """
+
+        k = self.k
+        kq = self.kq
+        h = self.clearance
+        a = self.radius
+        Nl = self.Nn
+        Ns = self.Nq
+
+        R = np.zeros(((2*Nl + 1)*(Ns+1), 1), dtype=complex)
+
+        l = 0
+        s = 0
+        R[vector_index(l, s, Nl, Ns), 0] = C[0]/2
+
+        for s in range(1, Ns+1):
+            R[vector_index(l, s, Nl, Ns), 0] = C[s]
+
+        return R
