@@ -21,25 +21,38 @@ k = fcl.real_disp_rel(omega, depth)
 
 print('Wavelength = ', 2*np.pi/k, ' m')
 
-Nq = 50 #number of evanescent modes
+Nq = 5 #number of evanescent modes
 kq = fcl.imag_disp_rel(omega, depth, Nq)
 
 
-Nn = 5 #number of progressive modes
+Nn = 2  #number of progressive modes
 
 
-# 2) isolated body behaviour
-body = fcl.Cylinder(radius=a, draft=draft, depth=depth, k=k,
-                    kq=kq, Nn=Nn, Nq=Nq, omega=omega)
-
-body.compute_diffraction_properties()
-body.compute_radiation_properties()
+# 2) isolated body geometry
+body = fcl.Cylinder(radius=a, draft=draft)
 
 
 # 3) define array
-cylArray = fcl.Array()
+cylArray = fcl.Array(beta=beta, depth=depth, k=k, kq=kq, Nn=Nn, Nq=Nq,
+                     omega=omega, water_density=rho, g=g)
 for ii in range(Nbodies):
     cylArray.add_body(0., ii*spacing, body)
+
+#compute isolated body behaviour
+for body in cylArray.bodies:
+    body.compute_diffraction_properties()
+    body.compute_radiation_properties()
+
+# build the full matrix and solve the problem
 cylArray.solve()
 
-print(cylArray.rao)
+print("rao = ", cylArray.rao)
+
+# 4) compute the free surface elevation
+nx = 100
+ny = 40
+Lx = 50.
+Ly = 20.
+x = np.linspace(-Lx, Lx, nx)
+y = np.linspace(-Lx, Lx, ny)
+cylArray.compute_free_surface(x, y)
