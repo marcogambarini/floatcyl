@@ -40,3 +40,6 @@ body.compute_radiation_properties()
 cylArray = fcl.Array()
 for ii in range(Nbodies):
     cylArray.add_body(0., ii*spacing, body)
+cylArray.solve()
+
+print(cylArray.rao)

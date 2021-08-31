@@ -10,7 +10,7 @@ class Array(object):
     x = []
     y = []
     bodies = []
-    
+
     def __init__(self,beta=0.):
         """Constructor.
 
@@ -42,7 +42,7 @@ class Array(object):
         Nq = self.bodies[0].Nq
         Nnq = (2*Nn + 1)*(Nq + 1)
 
-        Nbodies = np.shape(x)[0]
+        Nbodies = np.shape(self.x)[0]
 
         M11 = -np.eye(Nnq*Nbodies, dtype=complex)
         M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
@@ -53,8 +53,14 @@ class Array(object):
         h2 = np.zeros((Nbodies, 1), dtype=complex)
 
         for ii in range(Nbodies):
-            inc_wave_coeffs = incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
-            B = bodies[ii].B
+            k = self.bodies[ii].k
+            beta = self.beta
+            a = self.bodies[ii].radius
+            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+            B = self.bodies[ii].B
+            W = self.bodies[ii].W
+            Btilde = self.bodies[ii].Btilde
+            Y = self.bodies[ii].Y
             h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
             h2[ii] = -1/W * inc_wave_coeffs.T @ Btilde.T @ Y
             #h2[ii] = (-1j)*-1/W * inc_wave_coeffs.T @ Btilde.T @ Y
@@ -63,10 +69,10 @@ class Array(object):
                 if not (ii==jj):
                     Tij = self.basis_transformation_matrix(ii, jj, shutup=True)
 
-                    B = bodies[jj].B
-                    R = bodies[ii].R
-                    Btilde = bodies[jj].Btilde
-                    Y = bodies[jj].Y
+                    B = self.bodies[jj].B
+                    R = self.bodies[ii].R
+                    Btilde = self.bodies[jj].Btilde
+                    Y = self.bodies[jj].Y
 
                     #block matrix filling of matrix M11
                     M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ Tij.T
@@ -116,20 +122,21 @@ class Array(object):
         Tij: array of shape ((2Nn + 1)(Nm + 1) x (2Nn + 1)(Nm + 1))
         """
 
-        k = bodies[ii].k
-        km = bodies[ii].kq
-        Nn = bodies[ii].Nn
-        ai = bodies[ii].radius
-        aj = bodies[jj].radius
+        k = self.bodies[ii].k
+        km = self.bodies[ii].kq
+        Nn = self.bodies[ii].Nn
+        ai = self.bodies[ii].radius
+        aj = self.bodies[jj].radius
         xi = self.x[ii]
         yi = self.y[ii]
         xj = self.x[jj]
-        yj = self.x[jj]
+        yj = self.y[jj]
 
         L_ij = np.sqrt((xi-xj)*(xi-xj) + (yi-yj)*(yi-yj))
         alpha_ij = np.arctan2((yj-yi),(xj-xi))
 
         if not shutup:
+            print("i = ", ii, ", j = ", jj)
             print("L_ij = ", L_ij)
             print("alpha_ij = ", alpha_ij*180/np.pi, ' deg')
 
@@ -163,7 +170,7 @@ class Array(object):
 
 
 
-    def incident_wave_coeffs(k, beta, a, x, y, Nn, Nm):
+    def incident_wave_coeffs(self, k, beta, a, x, y, Nn, Nm):
         """Computes the incident wave coefficients for a body
 
         Parameters
