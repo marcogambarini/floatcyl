@@ -4,12 +4,12 @@
 import floatcyl as fcl
 import numpy as np
 
-omega = 3.
+omega = 1.
 depth = 30.
 beta = 0.
 rho = 1000.
 g = 9.81
-Nbodies = 4
+Nbodies = 100
 
 a = 1.
 spacing = 10.
@@ -21,11 +21,11 @@ k = fcl.real_disp_rel(omega, depth)
 
 print('Wavelength = ', 2*np.pi/k, ' m')
 
-Nq = 5 #number of evanescent modes
+Nq = 45 #number of evanescent modes
 kq = fcl.imag_disp_rel(omega, depth, Nq)
 
 
-Nn = 2  #number of progressive modes
+Nn = 5  #number of progressive modes
 
 
 # 2) isolated body geometry
@@ -49,10 +49,10 @@ cylArray.solve()
 print("rao = ", cylArray.rao)
 
 # 4) compute the free surface elevation
-nx = 100
-ny = 40
-Lx = 50.
-Ly = 20.
-x = np.linspace(-Lx, Lx, nx)
-y = np.linspace(-Lx, Lx, ny)
-cylArray.compute_free_surface(x, y)
+# nx = 100
+# ny = 40
+# Lx = 50.
+# Ly = 20.
+# x = np.linspace(-Lx, Lx, nx)
+# y = np.linspace(-Lx, Lx, ny)
+# eta = cylArray.compute_free_surface(x, y)
