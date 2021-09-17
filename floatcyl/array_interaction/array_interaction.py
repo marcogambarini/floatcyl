@@ -30,6 +30,12 @@ class Array(object):
         self.omega = omega
         self.water_density = water_density
         self.g = g
+        
+        self.bodies = []
+        self.x = []
+        self.y = []
+        self.Nbodies = 0       
+
 
     def add_body(self, xbody, ybody, body):
         """Adds single body to the array.
