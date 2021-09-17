@@ -7,11 +7,6 @@ from floatcyl.utils.utils import *
 
 class Array(object):
 
-    x = []
-    y = []
-    bodies = []
-    Nbodies = 0
-
     def __init__(self, beta=0., depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
                 g = 9.81):
