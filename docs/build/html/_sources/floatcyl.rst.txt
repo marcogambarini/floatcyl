@@ -1,0 +1,10 @@
+floatcyl package
+================
+
+Module contents
+---------------
+
+.. automodule:: floatcyl
+   :members:
+   :undoc-members:
+   :show-inheritance:
