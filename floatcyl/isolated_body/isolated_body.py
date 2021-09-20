@@ -13,8 +13,22 @@ class Cylinder(object):
         """Simple constructor with kwargs.
         The choice of kwargs is just for readability. They are all
         always needed. Actually, some of them (depth, k, omega)
-        are attributes of the problem, not of the object. This should
-        be fixed later for better usability.
+        are attributes of the problem, not of the object. It is
+        recommended to assign them to the problem (they would
+        be overwritten anyway)
+
+        Parameters
+        ----------
+        radius: radius of the cylinder (default: 1.)
+        draft: immersed length (default: 0.4)
+        depth: sea depth (default: 30.)
+        k: real wavenumber (default: 0.01)
+        kq: imaginary wavenumbers (list) (default: [0.4])
+        Nn: number of progressive (real) modes (default: 5)
+        Nq: number of evanescent (imaginary) modes (default: 10)
+        omega: radial frequency of the waves (default: 3)
+        water_density: water density (default: 1000)
+        g: gravitational field (default: 9.81)
         """
         self.radius = radius
         self.draft = draft
@@ -32,7 +46,9 @@ class Cylinder(object):
 
     def compute_diffraction_properties(self):
         """Computes single body diffraction matrices by calling
-        the proper subroutines."""
+        the proper subroutines.
+        See Eq. (3.83), (3.84) in Child 2011.
+        """
 
         Nq = self.Nq
         Nn = self.Nn
@@ -61,7 +77,9 @@ class Cylinder(object):
 
     def compute_radiation_properties(self):
         """Computes single body radiation matrices by calling
-        the proper subroutines."""
+        the proper subroutines.
+        See Eq. (3.106), (3.107), (3.150), (3.151) in Child 2011.
+        """
 
         a = self.radius
         k = self.k
@@ -121,17 +139,13 @@ class Cylinder(object):
 
 
     def isolated_body_matrices_diff(self, n, m):
-        """Compute the isolated body diffraction matrices E, G and vector u
+        """Compute the isolated body diffraction matrices E, G and vector u.
+        See Eq. (3.85) - (3.87) in Child 2011.
 
         Parameters
         ----------
         n: theta-mode
         m: z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
-        k: progressive wavenumber (real root of the dispersion equation)
-        kq: array of evanescent wavenumbers (imaginary roots of the dispersion equation)
-        h: clearance below the cylinder (depth-draft)
-        d: depth
-        a: cylinder radius
 
         Returns
         -------
@@ -217,17 +231,12 @@ class Cylinder(object):
 
 
     def isolated_body_matrices_rad(self, g=9.81):
-        """Compute the isolated body radiation problem vectors q, s
+        """Compute the isolated body radiation problem vectors q, s.
+        See Eq. (3.108), (3.109) in Child 2011.
 
         Parameters
         ----------
-        k: progressive wavenumber (real root of the dispersion equation)
-        kq: array of evanescent wavenumbers (imaginary roots of the dispersion equation)
-        h: clearance below the cylinder (depth-draft)
-        d: depth
-        a: cylinder radius
-        omega: wave frequency (rad/s)
-        g: gravitational field
+        g: gravitational field (default: 9.81)
 
         Returns
         -------
@@ -268,17 +277,12 @@ class Cylinder(object):
 
     def body_diffraction_matrix(self, D):
         """Computes the external diffraction matrix B from the results of the
-        isolated body analysis stored in array D
+        isolated body analysis stored in array D.
+        See Eq. (3.133) in Child 2011.
 
         Parameters
         ----------
         D: 3-D array of single-body scattering results
-        k: progressive wavenumber (real root of the dispersion equation)
-        km: array of evanescent wavenumbers (imaginary roots of the
-            dispersion equation), array of shape (Nm x 1)
-        d: water depth
-        a: radius
-        Nn: number of angular/radial modes
 
         Returns
         -------
@@ -347,16 +351,12 @@ class Cylinder(object):
 
     def body_diffraction_matrix_internal(self, C):
         """Computes the internal diffraction matrix B from the results of the
-        isolated body analysis stored in array C
+        isolated body analysis stored in array C.
+        See Eq. (3.134) in Child 2011.
 
         Parameters
         ----------
         C: 3-D array of single-body scattering results
-        k: progressive wavenumber (real root of the dispersion equation)
-        km: array of evanescent wavenumbers (imaginary roots of the
-            dispersion equation), array of shape (Nm x 1)
-        a: radius
-        Nn: number of angular/radial modes
 
 
         Returns
@@ -405,13 +405,7 @@ class Cylinder(object):
     def heave_forces_basis(self):
         """Computes the integrals of the internal problem basis function on the
         lower surface of the cylinder. Heave forces are combinations of these terms.
-
-        Parameters
-        ----------
-        a: cylinder radius
-        h: cylinder clearance (elevation of lower surface over the sea bottom)
-        Nn: number of angular/radial modes
-        Nm: number of evanescent modes
+        See Eq. (3.149) in Child 2011.
 
         Returns
         -------
@@ -438,18 +432,12 @@ class Cylinder(object):
 
     def radiated_wave_coeffs(self, D):
         """Computes the coefficients R of radiated wave coefficients
-        for the external problem (useful for potential/free surface recovery)
+        for the external problem (useful for potential/free surface recovery).
+        See Eq. (3.128) in Child 2011.
 
         Parameters
         ----------
         D: vector of single-body radiation results
-        k: progressive wavenumber (real root of the dispersion equation)
-        kq: array of evanescent wavenumbers (imaginary roots of the
-            dispersion equation), array of shape (Nm x 1)
-        d: water depth
-        a: radius
-        Nl: number of angular/radial modes
-        Nq: number of evanescent modes
 
         Returns
         -------
@@ -483,18 +471,12 @@ class Cylinder(object):
 
     def radiated_wave_coeffs_internal(self, C):
         """Computes the coefficients Rtilde of radiated wave coefficients
-        for the internal problem (useful for force computation)
+        for the internal problem (useful for force computation).
+        See Eq. (3.129) in Child 2011.
 
         Parameters
         ----------
         C: vector of single-body radiation results
-        k: progressive wavenumber (real root of the dispersion equation)
-        kq: array of evanescent wavenumbers (imaginary roots of the
-            dispersion equation), array of shape (Nm x 1)
-        h: clearance (elevation of lower surface over the sea bottom)
-        a: radius
-        Nl: number of angular/radial modes
-        Ns: number of evanescent modes
 
         Returns
         -------
