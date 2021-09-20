@@ -10,11 +10,19 @@ class Array(object):
     def __init__(self, beta=0., depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
                 g = 9.81):
-        """Constructor.
+        """Constructor
 
         Parameters
         ----------
         beta: incoming wave direction
+        depth: sea depth (default: 30.)
+        k: real wavenumber (default: 0.01)
+        kq: imaginary wavenumbers (list) (default: [0.4])
+        Nn: number of progressive (real) modes (default: 5)
+        Nq: number of evanescent (imaginary) modes (default: 10)
+        omega: radial frequency of the waves (default: 3)
+        water_density: water density (default: 1000)
+        g: gravitational field (default: 9.81)
         """
         self.beta = beta
         self.depth = depth
@@ -25,11 +33,11 @@ class Array(object):
         self.omega = omega
         self.water_density = water_density
         self.g = g
-        
+
         self.bodies = []
         self.x = []
         self.y = []
-        self.Nbodies = 0       
+        self.Nbodies = 0
 
 
     def add_body(self, xbody, ybody, body):
@@ -61,6 +69,7 @@ class Array(object):
 
     def solve(self):
         """Assembles and solves the full array system.
+        See Eq. (4.11) - (4.15) in Child 2011.
         """
 
 
@@ -214,7 +223,8 @@ class Array(object):
 
     def basis_transformation_matrix(self, ii, jj, shutup=False):
         """Computes the transformation matrix T_ij from the incident wave
-        basis of body i to the scattered wave basis of body j
+        basis of body i to the scattered wave basis of body j.
+        See Eq. (3.119) in Child 2011.
 
         Parameters
         ----------
@@ -281,7 +291,8 @@ class Array(object):
 
 
     def incident_wave_coeffs(self, k, beta, a, x, y, Nn, Nm):
-        """Computes the incident wave coefficients for a body
+        """Computes the incident wave coefficients for a body.
+        See Eq. (3.114) in Child 2011.
 
         Parameters
         ----------
@@ -313,7 +324,9 @@ class Array(object):
 
 
     def scattered_basis_fs(self, n, m, k, a, xc, yc, xeval, yeval):
-        """Computes the scattered wave basis function of order (n,m) at the free surface
+        """Computes the scattered wave basis function of order (n,m) at the free surface.
+        See Eq. (3.110) in Child 2011.
+
 
         Parameters
         ----------
@@ -367,7 +380,8 @@ class Array(object):
 
 
     def incident_basis_fs(n, m, k, depth, a, xc, yc, xeval, yeval):
-        """Computes the incident wave basis function of order (n,m) at the free surface
+        """Computes the incident wave basis function of order (n,m) at the free surface.
+        See Eq. (3.111) in Child 2011.
 
         Parameters
         ----------
