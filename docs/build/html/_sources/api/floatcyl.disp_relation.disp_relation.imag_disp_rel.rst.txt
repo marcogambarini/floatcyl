@@ -1,6 +1,0 @@
-imag_disp_rel
-=============
-
-.. currentmodule:: floatcyl.disp_relation.disp_relation
-
-.. autofunction:: imag_disp_rel

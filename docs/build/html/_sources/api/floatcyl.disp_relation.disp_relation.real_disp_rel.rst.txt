@@ -1,6 +1,0 @@
-real_disp_rel
-=============
-
-.. currentmodule:: floatcyl.disp_relation.disp_relation
-
-.. autofunction:: real_disp_rel
