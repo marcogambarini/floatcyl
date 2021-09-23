@@ -433,6 +433,7 @@ class Array(object):
             needs to be evaluated, in the global reference
 
         Returns
+        -------
         psi: array of shape (Np x 1)
 
         """
