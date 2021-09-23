@@ -18,7 +18,7 @@ def real_disp_rel(omega, depth, g=9.81):
 
     Returns
     -------
-    wavenumber (rad/m)
+    wavenumber (rad/m): float
     """
 
     def disp_rel(x):
@@ -47,8 +47,7 @@ def imag_disp_rel(omega, depth, N, g=9.81):
 
     Returns
     -------
-    array of shape (Nx1)
-        wavenumber (rad/m)
+    wavenumber (rad/m): array of shape (Nx1)
     """
 
     def disp_rel(x):
