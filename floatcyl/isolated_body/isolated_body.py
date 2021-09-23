@@ -19,16 +19,26 @@ class Cylinder(object):
 
         Parameters
         ----------
-        radius: radius of the cylinder (default: 1.)
-        draft: immersed length (default: 0.4)
-        depth: sea depth (default: 30.)
-        k: real wavenumber (default: 0.01)
-        kq: imaginary wavenumbers (list) (default: [0.4])
-        Nn: number of progressive (real) modes (default: 5)
-        Nq: number of evanescent (imaginary) modes (default: 10)
-        omega: radial frequency of the waves (default: 3)
-        water_density: water density (default: 1000)
-        g: gravitational field (default: 9.81)
+        radius: float
+            radius of the cylinder (default: 1.)
+        draft: float
+            immersed length (default: 0.4)
+        depth: float
+            sea depth (default: 30.)
+        k: float
+            real wavenumber (default: 0.01)
+        kq: list or array of floats
+            imaginary wavenumbers (default: [0.4])
+        Nn: int
+            number of progressive (real) modes (default: 5)
+        Nq: int
+            number of evanescent (imaginary) modes (default: 10)
+        omega: float
+            radial frequency of the waves (default: 3)
+        water_density: float
+            water density (default: 1000.)
+        g: float
+            gravitational field (default: 9.81)
         """
         self.radius = radius
         self.draft = draft
@@ -144,8 +154,10 @@ class Cylinder(object):
 
         Parameters
         ----------
-        n: theta-mode
-        m: z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
+        n: int
+            theta-mode
+        m: int
+            z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
 
         Returns
         -------
@@ -236,7 +248,8 @@ class Cylinder(object):
 
         Parameters
         ----------
-        g: gravitational field (default: 9.81)
+        g: float
+            gravitational field (default: 9.81)
 
         Returns
         -------
@@ -282,7 +295,8 @@ class Cylinder(object):
 
         Parameters
         ----------
-        D: 3-D array of single-body scattering results
+        D: 3-D array
+            single-body scattering results
 
         Returns
         -------
@@ -356,7 +370,8 @@ class Cylinder(object):
 
         Parameters
         ----------
-        C: 3-D array of single-body scattering results
+        C: 3-D array
+            single-body scattering results
 
 
         Returns
@@ -437,7 +452,8 @@ class Cylinder(object):
 
         Parameters
         ----------
-        D: vector of single-body radiation results
+        D: array
+            single-body radiation results
 
         Returns
         -------
@@ -476,7 +492,8 @@ class Cylinder(object):
 
         Parameters
         ----------
-        C: vector of single-body radiation results
+        C: array
+            single-body radiation results
 
         Returns
         -------
