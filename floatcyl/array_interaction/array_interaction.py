@@ -14,15 +14,24 @@ class Array(object):
 
         Parameters
         ----------
-        beta: incoming wave direction
-        depth: sea depth (default: 30.)
-        k: real wavenumber (default: 0.01)
-        kq: imaginary wavenumbers (list) (default: [0.4])
-        Nn: number of progressive (real) modes (default: 5)
-        Nq: number of evanescent (imaginary) modes (default: 10)
-        omega: radial frequency of the waves (default: 3)
-        water_density: water density (default: 1000)
-        g: gravitational field (default: 9.81)
+        beta: float
+            incoming wave direction
+        depth: float
+            sea depth (default: 30.)
+        k: float
+            real wavenumber (default: 0.01)
+        kq: list or array of floats
+            imaginary wavenumbers (default: [0.4])
+        Nn: int
+            number of progressive (real) modes (default: 5)
+        Nq: int
+            number of evanescent (imaginary) modes (default: 10)
+        omega: float
+            radial frequency of the waves (default: 3)
+        water_density: float
+            water density (default: 1000)
+        g: float
+            gravitational field (default: 9.81)
         """
         self.beta = beta
         self.depth = depth
@@ -47,8 +56,10 @@ class Array(object):
 
         Parameters
         ----------
-        xbody: x coordinate of body center
-        ybody: y coordinate of body center
+        xbody: float
+            x coordinate of body center
+        ybody: float
+            y coordinate of body center
         body: body object
         """
         body.depth = self.depth
@@ -142,7 +153,8 @@ class Array(object):
 
         Parameters
         ----------
-        x, y: grid coordinates in x, y
+        x, y: floats
+            grid coordinates in x, y
 
         Returns
         -------
@@ -228,14 +240,21 @@ class Array(object):
 
         Parameters
         ----------
-        k: progressive wavenumber (real root of the dispersion equation)
-        km: array of evanescent wavenumbers (imaginary roots of the
-            dispersion equation), array of shape (Nm x 1)
-        ai: radius of cylinder i
-        aj: radius of cylinder j
-        xi, yi: coordinates of body i
-        xj, yj: coordinates of body j
-        Nn: number of angular/radial modes
+        k: float
+            progressive wavenumber (real root of the dispersion equation)
+        km: list or array of shape (Nm x 1)
+            evanescent wavenumbers (imaginary roots of the
+            dispersion equation)
+        ai: float
+            radius of cylinder i
+        aj: float
+            radius of cylinder j
+        xi, yi: floats
+            coordinates of body i
+        xj, yj: floats
+            coordinates of body j
+        Nn: int
+            number of angular/radial modes
 
         Returns
         -------
@@ -296,12 +315,18 @@ class Array(object):
 
         Parameters
         ----------
-        k: progressive wavenumber (real root of the dispersion equation) (rad/s)
-        beta: direction of incoming waves (rad)
-        a: radius of the cylinder
-        (x,y): coordinates of the center of the cylinder
-        Nn: number of angular/radial modes
-        Nm: number of evanescent modes
+        k: float
+            progressive wavenumber (real root of the dispersion equation) (rad/s)
+        beta: float
+            direction of incoming waves (rad)
+        a: float
+            radius of the cylinder
+        x, y: floats
+            coordinates of the center of the cylinder
+        Nn: int
+            number of angular/radial modes
+        Nm: int
+            number of evanescent modes
 
         Returns
         -------
@@ -330,15 +355,21 @@ class Array(object):
 
         Parameters
         ----------
-        n: theta-mode
-        m: z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
-        k: relevant wavenumber for the requested order (real root of the dispersion
-        equation for m=0, m-th imaginary root of the dispersion equation for m>=1)
-        depth: water depth
-        a: cylinder radius
-        xc, yc: center coordinates of the scattering body in the global reference
-        xeval, yeval: (Npx1) arrays of coordinates of points where the basis function
-        needs to be evaluated, in the global reference
+        n: int
+            theta-mode
+        m: int
+            z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
+        k: float
+            relevant wavenumber for the requested order (real root of the dispersion
+            equation for m=0, m-th imaginary root of the dispersion equation for m>=1)
+            depth: water depth
+        a: float
+            cylinder radius
+        xc, yc: floats
+            center coordinates of the scattering body in the global reference
+        xeval, yeval: ints
+            (Npx1) arrays of coordinates of points where the basis function
+            needs to be evaluated, in the global reference
 
         Returns
         psi: array of shape (Np x 1)
@@ -385,15 +416,21 @@ class Array(object):
 
         Parameters
         ----------
-        n: theta-mode
-        m: z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
-        k: relevant wavenumber for the requested order (real root of the dispersion
-        equation for m=0, m-th imaginary root of the dispersion equation for m>=1)
-        depth: water depth
-        a: cylinder radius
-        xc, yc: center coordinates of the scattering body in the global reference
-        xeval, yeval: (Npx1) arrays of coordinates of points where the basis function
-        needs to be evaluated, in the global reference
+        n: int
+            theta-mode
+        m: int
+            z-mode (0 for incident progressive waves, >0 for incident evanescent waves)
+        k: float
+            relevant wavenumber for the requested order (real root of the dispersion
+            equation for m=0, m-th imaginary root of the dispersion equation for m>=1)
+            depth: water depth
+        a: float
+            cylinder radius
+        xc, yc: floats
+            center coordinates of the scattering body in the global reference
+        xeval, yeval: (Npx1) arrays of floats
+            coordinates of points where the basis function
+            needs to be evaluated, in the global reference
 
         Returns
         psi: array of shape (Np x 1)
