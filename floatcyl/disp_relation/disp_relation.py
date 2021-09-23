@@ -9,9 +9,12 @@ def real_disp_rel(omega, depth, g=9.81):
 
     Parameters
     ----------
-    omega: angular frequency of the wave (rad/s)
-    depth: water depth (m)
-    g: gravitational field (m/s^2), default=9.81
+    omega: float
+        angular frequency of the wave (rad/s)
+    depth: float
+        water depth (m)
+    g: float
+        gravitational field (m/s^2), default=9.81
 
     Returns
     -------
@@ -33,10 +36,14 @@ def imag_disp_rel(omega, depth, N, g=9.81):
 
     Parameters
     ----------
-    omega: angular frequency of the wave (rad/s)
-    depth: water depth (m)
-    N: number of wavenumbers to compute
-    g: gravitational field (m/s^2), default=9.81
+    omega: float
+        angular frequency of the wave (rad/s)
+    depth: float
+        water depth (m)
+    N: int
+        number of wavenumbers to compute
+    g: float
+        gravitational field (m/s^2), default=9.81
 
     Returns
     -------
