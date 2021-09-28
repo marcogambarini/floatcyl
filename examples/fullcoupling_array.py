@@ -38,17 +38,16 @@ cylArray = fcl.Array(beta=beta, depth=depth, k=k, kq=kq, Nn=Nn, Nq=Nq,
 for ii in range(Nbodies):
     cylArray.add_body(0., ii*spacing, body)
 
-#compute isolated body behaviour
-for body in cylArray.bodies:
-    body.compute_diffraction_properties()
-    body.compute_radiation_properties()
+# 4) compute isolated body behaviour (only once!)
+body.compute_diffraction_properties()
+body.compute_radiation_properties()
 
-# build the full matrix and solve the problem
+# 5) build the full matrix and solve the problem
 cylArray.solve()
 
 print("rao = ", cylArray.rao)
 
-# 4) compute the free surface elevation
+# 6) compute the free surface elevation
 # nx = 100
 # ny = 40
 # Lx = 50.
