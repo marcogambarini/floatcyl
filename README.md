@@ -9,3 +9,8 @@ The code is based on the works
 To install, enter the directory and use the command
 `pip3 install -e .`
 This is installation for developers: if you update the code, you will immediately use the updated version when you load the module in Python.
+
+
+To see the documentation, enter folder docs and run 
+`make html`
+Then a file index.html will appear in docs/build.
