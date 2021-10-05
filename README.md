@@ -12,5 +12,5 @@ This is installation for developers: if you update the code, you will immediatel
 
 
 To see the documentation, enter folder docs and run 
-`make html`
-Then a file index.html will appear in docs/build.
+`make html`.
+A file index.html will appear in docs/build.
