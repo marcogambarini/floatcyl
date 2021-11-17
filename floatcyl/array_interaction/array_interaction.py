@@ -411,7 +411,7 @@ class Array(object):
         return psi
 
 
-    def incident_basis_fs(n, m, k, depth, a, xc, yc, xeval, yeval):
+    def incident_basis_fs(self, n, m, k, depth, a, xc, yc, xeval, yeval):
         """Computes the incident wave basis function of order (n,m) at the free surface.
         See Eq. (3.111) in Child 2011.
 
