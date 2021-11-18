@@ -24,3 +24,12 @@ of a typical computation.
    value. If you want a snapshot, take the real part (or the
    imaginary part, or a combination). If you want an animation,
    multiply it by exp(-j omega t).
+
+
+Examples
+--------
+The examples are in order of complexity.
+1. inc_field.py: decomposition of an incident plane wave
+   in the basis of incident cylindrical waves.
+2. basis_transf.py: meaning of matrix T_ij.
+3. fullcoupling_array.py: simulation of a line array of cylinders.
