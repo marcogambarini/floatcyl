@@ -28,7 +28,9 @@ of a typical computation.
 
 Examples
 --------
+
 The examples are in order of complexity.
+
 1. inc_field.py: decomposition of an incident plane wave
    in the basis of incident cylindrical waves.
 2. basis_transf.py: meaning of matrix T_ij.
