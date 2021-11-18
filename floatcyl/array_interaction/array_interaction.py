@@ -240,21 +240,12 @@ class Array(object):
 
         Parameters
         ----------
-        k: float
-            progressive wavenumber (real root of the dispersion equation)
-        km: list or array of shape (Nm x 1)
-            evanescent wavenumbers (imaginary roots of the
-            dispersion equation)
-        ai: float
-            radius of cylinder i
-        aj: float
-            radius of cylinder j
-        xi, yi: floats
-            coordinates of body i
-        xj, yj: floats
-            coordinates of body j
-        Nn: int
-            number of angular/radial modes
+        ii: integer
+            Index of receiving body
+        jj: integer
+            Index of emitting body
+        shutup: boolean
+            Whether or not to print an output to screen
 
         Returns
         -------
