@@ -43,8 +43,8 @@ for ii in range(Nbodies):
     cylArray.add_body(0., ii*spacing-(Nbodies-1)*spacing/2, body)
 
 # 4) compute isolated body behaviour (only once!)
-body.compute_diffraction_properties()
-body.compute_radiation_properties()
+body.compute_diffraction_properties() #B
+body.compute_radiation_properties() #Btilde
 
 # 5) build the full matrix and solve the problem
 cylArray.solve()
