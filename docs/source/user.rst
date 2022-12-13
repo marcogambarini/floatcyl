@@ -35,3 +35,6 @@ The examples are in order of complexity.
    in the basis of incident cylindrical waves.
 2. basis_transf.py: meaning of matrix T_ij.
 3. fullcoupling_array.py: simulation of a line array of cylinders.
+4. compare_capytaine.py: simulation of a triangular array of cylinders
+   and validation against open-source BEM solver Capytaine (needs
+   a working installation of Capytaine)
