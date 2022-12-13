@@ -1,5 +1,11 @@
 #! /usr/bin/env python3
 
+"""
+Full coupling (diffraction + radiation) for a triangular array,
+comparison with the BEM code Capytaine by M. Ancellin
+https://github.com/capytaine/capytaine
+"""
+
 import numpy as np
 import floatcyl as fcl
 import capytaine as cpt
@@ -70,7 +76,6 @@ for ii, omega in enumerate(omegavec):
     # 1) Dispersion relation
     wavenum = fcl.real_disp_rel(omega, depth)
 
-    print('Wavelength = ', 2*np.pi/wavenum, ' m')
 
     Nq = 33 #number of evanescent modes
     kq = fcl.imag_disp_rel(omega, depth, Nq)
@@ -80,8 +85,7 @@ for ii, omega in enumerate(omegavec):
 
 
     # 2) isolated body geometry
-    body = fcl.Cylinder(radius=r, draft=draft, omega=omega,
-                        gamma=0, delta=0)
+    body = fcl.Cylinder(radius=r, draft=draft, omega=omega)
 
 
     # 3) define array
@@ -98,9 +102,7 @@ for ii, omega in enumerate(omegavec):
     cylArray.solve()
 
     x_fcl = np.array(cylArray.rao)[:, 0]
-    print(x_fcl)
     x_fcl_mat[ii, :] = x_fcl
-    print(x_fcl_mat)
 
     print("oscillation amplitude, Floatcyl = ", x_fcl)
     print("phase = ", np.angle(x_fcl)*180/np.pi, ' deg')
@@ -111,20 +113,27 @@ for ii, omega in enumerate(omegavec):
     phase_diff = (np.angle(x_fcl) - np.angle(x_cap)) * 180/np.pi
     print('phase difference = ', phase_diff, 'deg')
 
-
+# optional: save the results for future plotting
 np.save('x_fcl', x_fcl_mat)
 np.save('x_cap', x_cap_mat)
 
 ######################### PLOTS ########################
 import matplotlib.pyplot as plt
 
-body_index = 1
+body_index = 1 # index of the body for which to plot the results
+
+# Correct and unwrapp phases for comparison
+fcl_phase = np.unwrap(np.angle(x_fcl_mat[:, body_index])-np.pi/2)*180/np.pi
+cap_phase = np.unwrap(np.angle(x_cap_mat[:, body_index]))*180/np.pi
 
 fig, ax = plt.subplots(2, 1)
 ax[0].plot(omegavec, np.abs(x_fcl_mat[:, body_index]), 'o', label='Fcl')
 ax[0].plot(omegavec, np.abs(x_cap_mat[:, body_index]), '-', label='Cap')
-ax[1].plot(omegavec, np.angle(x_fcl_mat[:, body_index])-np.pi/2, 'o', label='Fcl')
-ax[1].plot(omegavec, np.angle(x_cap_mat[:, body_index]), '-', label='Cap')
+ax[1].plot(omegavec, fcl_phase, 'o', label='Fcl')
+ax[1].plot(omegavec, cap_phase, '-', label='Cap')
 ax[1].legend()
+ax[1].set_xlabel(r'$\omega$ (rad/s)')
+ax[0].set_ylabel('Amplitude')
+ax[1].set_ylabel('Phase (deg)')
 
 plt.show()
