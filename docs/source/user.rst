@@ -37,4 +37,9 @@ The examples are in order of complexity.
 3. fullcoupling_array.py: simulation of a line array of cylinders.
 4. compare_capytaine.py: simulation of a triangular array of cylinders
    and validation against open-source BEM solver Capytaine (needs
-   a working installation of Capytaine)
+   a working installation of Capytaine). Note that there is a 90
+   degree difference to be compensated when results are compared.
+   This is a matter of conventions: Capytaine works with zero phase of
+   the ambient potential in (0, 0) (see the Theory guide online), while
+   Floatcyl works with zero phase of the free surface elevation in
+   (0, 0) (see Eq. (3.65) in Child's thesis). 
