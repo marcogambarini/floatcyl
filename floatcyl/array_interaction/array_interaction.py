@@ -113,7 +113,7 @@ class Array(object):
 
             for jj in range(Nbodies):
                 if not (ii==jj):
-                    Tij = self.basis_transformation_matrix(ii, jj, shutup=True)
+                    Tij = self.basis_transformation_matrix(jj, ii, shutup=True)
 
                     B = self.bodies[jj].B
                     R = self.bodies[ii].R
