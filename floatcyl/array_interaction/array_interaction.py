@@ -10,7 +10,7 @@ class Array(object):
 
     def __init__(self, beta=0., depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
-                g = 9.81):
+                g = 9.81, denseops = False):
         """Constructor
 
         Parameters
@@ -33,6 +33,9 @@ class Array(object):
             water density (default: 1000)
         g: float
             gravitational field (default: 9.81)
+        denseops: boolean
+            whether to use dense matrices and direct solvers
+            (default: False, will use sparse matrices and GMRES)
         """
         self.beta = beta
         self.depth = depth
@@ -90,7 +93,7 @@ class Array(object):
         Nnq = (2*Nn + 1)*(Nq + 1)
 
         Nbodies = self.Nbodies
-
+        
         M11 = -np.eye(Nnq*Nbodies, dtype=complex)
         M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
         M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
@@ -122,7 +125,7 @@ class Array(object):
                     Y = self.bodies[jj].Y
 
                     #block matrix filling of matrix M11
-                    M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ Tij.T
+                    M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = (B @ Tij.T).toarray()
                     self.M11 = M11 #for debugging and checking the spectral radius
 
                     #block column-vector filling of matrix M12

@@ -2,6 +2,7 @@
 
 import numpy as np
 from scipy.special import *
+from scipy.sparse import coo_matrix
 
 from floatcyl.utils.utils import *
 
@@ -55,6 +56,7 @@ class Cylinder(object):
 
         # Intermediate quantities
         self.ivp_iv_mat = None
+        self.kv_mat = None
 
 
     def compute_diffraction_properties(self):
@@ -74,6 +76,7 @@ class Cylinder(object):
         # precomputation of a heavy term
         M, N = np.meshgrid(np.arange(1, Nq+1), np.arange(-Nn, Nn+1))
         self.ivp_iv_mat = ivp(N, M*np.pi*a/h)/iv(N, M*np.pi*a/h)
+        self.kv_mat = kv(N, self.kq[M-1][:,:,0]*a)
 
 
         for n in range(-Nn, Nn+1):
@@ -157,7 +160,6 @@ class Cylinder(object):
         self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega - self.hyd_stiff)
 
 
-
     def isolated_body_matrices_diff(self, n, m):
         """Compute the isolated body diffraction matrices E, G and vector u.
         See Eq. (3.85) - (3.87) in Child 2011.
@@ -214,10 +216,15 @@ class Cylinder(object):
         s = sq_grid[0,:,:]
         q = sq_grid[1,:,:]
 
-        E[:,1:Nq] = -2*h*kv(n, kq[q-1][:,:,0]*a)/dKnkqa[q-1][:,:,0] * (
+        if self.kv_mat is None:
+            E[:,1:Nq] = -2*h*kv(n, kq[q-1][:,:,0]*a)/dKnkqa[q-1][:,:,0] * (
                     (kq[q-1][:,:,0]*(-1)**s*sinkqh[q-1][:,:,0]) /
                     (sqrtNq[q-1][:,:,0] * (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)) )
-
+        else:
+            tiled_kv = np.tile(self.kv_mat[n+self.Nn,:], (Nq, 1))
+            E[:,1:Nq] = -2*h*tiled_kv/dKnkqa[q-1][:,:,0] * (
+                    (kq[q-1][:,:,0]*(-1)**s*sinkqh[q-1][:,:,0]) /
+                    (sqrtNq[q-1][:,:,0] * (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)) )
 
 
         #U vector
@@ -306,6 +313,7 @@ class Cylinder(object):
 
         return q, s
 
+    #@profile
     def body_diffraction_matrix(self, D):
         """Computes the external diffraction matrix B from the results of the
         isolated body analysis stored in array D.
@@ -333,50 +341,75 @@ class Cylinder(object):
 
         Nq = np.shape(kq)[0]
 
-        B = np.zeros(((2*Nn + 1)*(Nq + 1),(2*Nn + 1)*(Nq + 1)), dtype=complex)
+        #B = np.zeros(((2*Nn + 1)*(Nq + 1),(2*Nn + 1)*(Nq + 1)), dtype=complex)
+        # vectors for building sparse matrix in coordinate form
+        data = np.zeros((2*Nn+1)*(Nq+1)**2, dtype=complex)
+        row_ind = np.zeros((2*Nn+1)*(Nq+1)**2, dtype=np.int32)
+        col_ind = np.zeros((2*Nn+1)*(Nq+1)**2, dtype=np.int32)
 
+        counter = 0
 
         for n in range(-Nn,Nn+1):
             #incident prog. wave, scattered prog. wave
             m = 0
             q = 0
-            B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+            data[counter] = (
              hankel1(n,k*a)/jv(n,k*a)/h1vp(n,k*a) * (-jvp(n,k*a) +
              (1j)**(-n) * D[0,n,0]*np.cosh(k*d)/sqrtN0)
             )
+            row_ind[counter] = vector_index(n,q,Nn,Nq)
+            col_ind[counter] = vector_index(n,m,Nn,Nq)
+            counter += 1
 
 
             #incident prog. wave, scattered evan. wave
             m = 0
             for q in range(1,Nq+1):
-                B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+                data[counter] = (
                  kn(n,kq[q-1]*a)/jv(n,k*a) * (1j)**(-n) * D[q,n,0]/
                  sqrtNq[q-1]/kvp(n, kq[q-1]*a)
                 )
+                row_ind[counter] = vector_index(n,q,Nn,Nq)
+                col_ind[counter] = vector_index(n,m,Nn,Nq)
+                counter += 1
 
             #incident evan. wave, scattered prog. wave
             q = 0
             for m in range(1,Nq+1):
-                B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+                data[counter] = (
                  hankel1(n,k*a)/iv(n,kq[m-1]*a) * D[0,n,m]*np.cosh(k*d)/
                  (sqrtN0 * h1vp(n,k*a))
                 )
+                row_ind[counter] = vector_index(n,q,Nn,Nq)
+                col_ind[counter] = vector_index(n,m,Nn,Nq)
+                counter += 1
 
             #incident evan. wave, scattered evan. wave
             for q in range(1,Nq+1):
+                # Precomputations (quantities independent of m)
+                kvp_n_q = kvp(n,kq[q-1]*a)
+                kn_n_q = kn(n,kq[q-1]*a)
                 for m in range(1,Nq+1):
                     if (q!=m):
-                        B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
-                         kn(n,kq[q-1]*a)/iv(n,kq[m-1]*a) *
-                         D[q,n,m] / (sqrtNq[q-1]*kvp(n,kq[q-1]*a))
+                        data[counter] = (
+                         kn_n_q/iv(n,kq[m-1]*a) *
+                         D[q,n,m] / (sqrtNq[q-1]*kvp_n_q)
                         )
+                        row_ind[counter] = vector_index(n,q,Nn,Nq)
+                        col_ind[counter] = vector_index(n,m,Nn,Nq)
+                        counter += 1
                     else:
-                        B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+                        data[counter] = (
                          kn(n,kq[m-1]*a)/iv(n,kq[m-1]*a) * (
                          -ivp(n,kq[m-1]*a)/kvp(n,kq[m-1]*a) +
                          D[m,n,m]/(sqrtNq[m-1]*kvp(n,kq[m-1]*a))
                          )
                         )
+                        row_ind[counter] = vector_index(n,q,Nn,Nq)
+                        col_ind[counter] = vector_index(n,m,Nn,Nq)
+                        counter += 1
+
+        B = coo_matrix((data, (row_ind, col_ind)))
 
         return B
 
