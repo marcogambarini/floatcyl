@@ -244,7 +244,6 @@ class Cylinder(object):
         q = sq_grid[0,:,:]
         s = sq_grid[1,:,:]
 
-        print(ivp(n, s*np.pi*a/h)/iv(n, s*np.pi*a/h))
 
         if self.ivp_iv_mat is None:
             G[1:Nq, 1:Nq] = ivp(n, s*np.pi*a/h)/iv(n, s*np.pi*a/h) * (
@@ -252,7 +251,6 @@ class Cylinder(object):
                 (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)*d*sqrtNq[q-1][:,:,0]))
         else:
             tiled_ivp_iv = np.tile(self.ivp_iv_mat[n+self.Nn,:], (Nq-1, 1))
-            print(tiled_ivp_iv)
             G[1:Nq, 1:Nq] = tiled_ivp_iv * (
                 (s*np.pi*h*(-1)**s*sinkqh[q-1][:,:,0])/(
                 (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)*d*sqrtNq[q-1][:,:,0]))
