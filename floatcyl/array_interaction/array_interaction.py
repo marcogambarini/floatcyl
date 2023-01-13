@@ -238,7 +238,6 @@ class Array(object):
         """Computes the transformation matrix T_ij from the incident wave
         basis of body i to the scattered wave basis of body j.
         See Eq. (3.119) in Child 2011.
-
         Parameters
         ----------
         ii: integer
@@ -247,7 +246,6 @@ class Array(object):
             Index of emitting body
         shutup: boolean
             Whether or not to print an output to screen
-
         Returns
         -------
         Tij: array of shape ((2Nn + 1)(Nm + 1) x (2Nn + 1)(Nm + 1))
@@ -275,51 +273,28 @@ class Array(object):
 
         T_ij = np.zeros(((2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
 
-        #print(np.shape(T_ij))
-
-        # precompute vectors
-        jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
-        hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
-        hank_diff_vec = (hankel1(np.arange(-2*Nn, 2*Nn+1), k*L_ij) *
-                        np.exp(1j*alpha_ij*(np.arange(-2*Nn, 2*Nn+1))))
-        M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
-        iv_mat = iv(L,km[M][:,:,0]*aj)
-        kn_mat = kn(L,km[M][:,:,0]*ai)
-        M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+1))
-        kn_diff_mat = kn(LL,km[M][:,:,0]*L_ij)
-        exp_vec = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
-
-        # vectors for building sparse matrix in coordinate form
-        data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
-        row_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
-        col_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
-
-        counter = 0
+         #print(np.shape(T_ij))
 
         for n in range(-Nn,Nn+1):
             for l in range(-Nn,Nn+1):
                 #m=0
                 m=0
 
-                data[counter] = jv_vec[l+Nn]/hank_vec[n+Nn]*hank_diff_vec[n-l+2*Nn]
-                row_ind[counter] = vector_index(n,m,Nn,Nm)
-                col_ind[counter] = vector_index(l,m,Nn,Nm)
-                counter += 1
+                T_ij[vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                    jv(l,k*aj)/hankel1(n,k*ai)*hankel1(n-l,k*L_ij)*
+                    np.exp(1j*alpha_ij*(n-l))
+                )
 
-                data[counter:counter+Nm] = (iv_mat[l,:]/kn_mat[n,:]*kn_diff_mat[n-l+2*Nn,:]*
-                            exp_vec[n-l+2*Nn]*(-1)**l)
 
 
                 for m in range(1,Nm+1):
 
-                    row_ind[counter] = vector_index(n,m,Nn,Nm)
-                    col_ind[counter] = vector_index(l,m,Nn,Nm)
-                    counter += 1
-
-        T_ij = coo_matrix((data, (row_ind, col_ind)))
+                    T_ij[vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                    iv(l,km[m-1]*aj)/kn(n,km[m-1]*ai)*kn(n-l,km[m-1]*L_ij)*
+                    np.exp(1j*alpha_ij*(n-l))*(-1)**l
+                    )
 
         return T_ij
-
 
 
 
