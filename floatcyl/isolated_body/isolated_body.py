@@ -53,6 +53,9 @@ class Cylinder(object):
 
         self.clearance = depth-draft
 
+        # Intermediate quantities
+        self.ivp_iv_mat = None
+
 
     def compute_diffraction_properties(self):
         """Computes single body diffraction matrices by calling
@@ -62,9 +65,16 @@ class Cylinder(object):
 
         Nq = self.Nq
         Nn = self.Nn
+        a = self.radius
+        h = self.clearance
 
         D = np.zeros((Nq+1, 2*Nn+1, Nq+1), dtype=complex) #external coeffs
         C = np.zeros((Nq+1, 2*Nn+1, Nq+1), dtype=complex) #internal coeffs
+
+        # precomputation of a heavy term
+        M, N = np.meshgrid(np.arange(1, Nq+1), np.arange(-Nn, Nn+1))
+        self.ivp_iv_mat = ivp(N, M*np.pi*a/h)/iv(N, M*np.pi*a/h)
+
 
         for n in range(-Nn, Nn+1):
             for m in range(Nq+1):
@@ -233,7 +243,15 @@ class Cylinder(object):
         sq_grid = np.mgrid[1:Nq, 1:Nq]
         q = sq_grid[0,:,:]
         s = sq_grid[1,:,:]
-        G[1:Nq, 1:Nq] = ivp(n, s*np.pi*a/h)/iv(n, s*np.pi*a/h) * (
+
+        if self.ivp_iv_mat is None:
+            G[1:Nq, 1:Nq] = ivp(n, s*np.pi*a/h)/iv(n, s*np.pi*a/h) * (
+                (s*np.pi*h*(-1)**s*sinkqh[q-1][:,:,0])/(
+                (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)*d*sqrtNq[q-1][:,:,0]))
+        else:
+            print('Precomputed matrix found')
+            tiled_ivp_iv = np.tile(self.ivp_iv_mat[n+self.Nn,:], (Nq-1, 1))
+            G[1:Nq, 1:Nq] = tiled_ivp_iv * (
                 (s*np.pi*h*(-1)**s*sinkqh[q-1][:,:,0])/(
                 (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)*d*sqrtNq[q-1][:,:,0]))
 

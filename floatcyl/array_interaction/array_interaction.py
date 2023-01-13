@@ -123,6 +123,7 @@ class Array(object):
 
                     #block matrix filling of matrix M11
                     M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ Tij.T
+                    self.M11 = M11 #for debugging and checking the spectral radius
 
                     #block column-vector filling of matrix M12
                     M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ Tij.T @ R)[:,0]
