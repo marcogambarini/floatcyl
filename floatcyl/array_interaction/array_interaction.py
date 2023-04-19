@@ -93,7 +93,7 @@ class Array(object):
         Nnq = (2*Nn + 1)*(Nq + 1)
 
         Nbodies = self.Nbodies
-        
+
         M11 = -np.eye(Nnq*Nbodies, dtype=complex)
         M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
         M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
@@ -137,12 +137,16 @@ class Array(object):
                     #elementwise filling of matrix M22
                     M22[ii, jj] = 1/W * R.T @ Tij @ Btilde.T @ Y
 
+        # Save blocks for use in optimization routines
+        self.M11 = M11
+        self.M12 = M12
+        self.M21 = M21
+        self.M22 = M22
 
 
         # Build matrix M and vector h from blocks
         M = np.block([[M11, M12],[M21,M22]])
         hh = np.block([[h1],[h2]])
-
 
 
 
@@ -476,3 +480,328 @@ class Array(object):
 
 
         return psi
+
+
+
+
+    def L_derivatives(self):
+        """
+        Computes the derivatives of the distance and angle between pairs
+        of bodies with respect to their coordinates.
+        See Eq. (4.23)-(4.27) in Gallizioli 2022.
+        """
+
+        x_coord = self.x
+        y_coord = self.y
+        Nb = self.Nbodies
+
+        L = np.zeros((Nb,Nb))
+        alpha = np.zeros((Nb,Nb))
+
+        dL_dxi = np.zeros((Nb,Nb))
+        dL_dxj = np.zeros((Nb,Nb))
+        dL_dyi = np.zeros((Nb,Nb))
+        dL_dyj = np.zeros((Nb,Nb))
+        dalpha_dxi = np.zeros((Nb,Nb))
+        dalpha_dxj = np.zeros((Nb,Nb))
+        dalpha_dyi = np.zeros((Nb,Nb))
+        dalpha_dyj = np.zeros((Nb,Nb))
+
+        for ii in range(Nb):
+            for jj in range(Nb):
+                if ii!=jj:
+
+                    L[ii,jj] = np.sqrt((x_coord[jj] - x_coord[ii])**2 + (y_coord[jj] - y_coord[ii])**2)
+                    alpha[ii,jj] = np.arctan2(y_coord[jj] - y_coord[ii], x_coord[jj] - x_coord[ii])
+
+                    M = np.array(((np.cos(alpha[ii,jj]), -L[ii,jj]*np.sin(alpha[ii,jj])),
+                                  (np.sin(alpha[ii,jj]),  L[ii,jj]*np.cos(alpha[ii,jj]))))
+
+                    b = [-1, 0]
+                    x = np.linalg.solve(M, b)
+                    dL_dxi[ii,jj] = x[0]
+                    dalpha_dxi[ii,jj] = x[1]
+
+                    b = [1, 0]
+                    x = np.linalg.solve(M, b)
+                    dL_dxj[ii,jj] = x[0]
+                    dalpha_dxj[ii,jj] = x[1]
+
+                    b = [0, -1]
+                    x = np.linalg.solve(M, b)
+                    dL_dyi[ii,jj] = x[0]
+                    dalpha_dyi[ii,jj] = x[1]
+
+                    b = [0, 1]
+                    x = np.linalg.solve(M, b)
+                    dL_dyj[ii,jj] = x[0]
+                    dalpha_dyj[ii,jj] = x[1]
+
+
+        return L, alpha, dL_dxi, dL_dxj, dL_dyi, dL_dyj, dalpha_dxi, dalpha_dxj, dalpha_dyi, dalpha_dyj
+
+
+    def T_derivatives(self):
+        """
+        Computes the derivatives of the basis transformation matrices
+        with respect to the coordinates of bodies.
+        See Eq. (4.20) in Gallizioli 2022
+        """
+        Nn = self.Nn
+        Nm = self.Nq
+        a = self.bodies[0].radius
+
+        k = self.k
+        km = self.kq
+
+        Nb = self.Nbodies
+
+        Lder = self.L_derivatives()
+
+        L = Lder[0]
+        alpha = Lder[1]
+
+        dT_dxi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        dT_dxj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+
+        dT_dyi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        dT_dyj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+
+
+        for ii in range(Nb):
+            for jj in range(Nb):
+                if ii!=jj :
+
+                    for n in range(-Nn,Nn+1):
+                        for l in range(-Nn,Nn+1):
+                            m=0
+
+                            dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                        jv(l,k*a)/hankel1(n,k*a)
+                                        *(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[2][ii,jj]
+                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[6][ii,jj])
+                                        )
+
+                            dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                        jv(l,k*a)/hankel1(n,k*a)*(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[4][ii,jj]
+                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[8][ii,jj])
+                                        )
+
+                            dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                        jv(l,k*a)/hankel1(n,k*a)*(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[3][ii,jj]
+                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[7][ii,jj])
+                                        )
+
+                            dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                        jv(l,k*a)/hankel1(n,k*a)*(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[5][ii,jj]
+                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[9][ii,jj])
+                                        )
+
+
+
+                            for m in range(1,Nm+1):
+
+                                dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
+                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
+                                *np.exp(1j*alpha[ii,jj]*(n-l))
+                                *(-1)**l
+                                *km[m-1]
+                                *Lder[2][ii,jj]
+                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[6][ii,jj])
+                                )
+
+                                dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
+                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
+                                *np.exp(1j*alpha[ii,jj]*(n-l))
+                                *(-1)**l
+                                *km[m-1]
+                                *Lder[4][ii,jj]
+                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[8][ii,jj])
+                                )
+
+                                dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
+                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
+                                *np.exp(1j*alpha[ii,jj]*(n-l))
+                                *(-1)**l
+                                *km[m-1]
+                                *Lder[3][ii,jj]
+                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[7][ii,jj])
+                                )
+
+                                dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
+                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
+                                *np.exp(1j*alpha[ii,jj]*(n-l))
+                                *(-1)**l
+                                *km[m-1]
+                                *Lder[5][ii,jj]
+                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[9][ii,jj])
+                                )
+
+
+        return dT_dxi, dT_dxj, dT_dyi, dT_dyj
+
+
+    def adjoint_equations(self):
+        """
+        Solves the adjoint equations.
+        See (4.14) of Gallizioli 2022.
+        """
+        Nbodies = self.Nbodies
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+
+        M11 = self.M11
+        M12 = self.M12
+        M21 = self.M21
+        M22 = self.M22
+
+        rao = self.rao
+
+        C = np.zeros((Nbodies,Nbodies))
+        for ii in range(Nbodies):
+            C[ii,ii] = self.bodies[ii].gamma
+
+        h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
+        h2 = self.omega**2 * C@rao
+
+        M11H = M11.conj().T
+        M12H = M12.conj().T
+        M21H = M21.conj().T
+        M22H = M22.conj().T
+
+        MH = np.block([[M11H, M21H],[M12H,M22H]])
+        mulan = np.block([[h1],[h2]])
+
+        # Solve the system
+        z = np.linalg.solve(MH, mulan)
+        self.landa = z[:Nnq*Nbodies]
+        self.mu = z[Nnq*Nbodies:]
+
+
+    def M_derivatives(self):
+        """
+        Computes the derivatives of the matrix blocks of the primal
+        system (needed to assemble the gradient) with respect to the
+        positions of the bodies.
+        See Eq. (4.16)-(4.20) of Gallizioli 2022
+        """
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+
+        Nbodies = self.Nbodies
+
+        dM11_dxi = np.zeros((Nbodies,Nnq*Nbodies,Nnq*Nbodies), dtype=complex)
+        dM12_dxi = np.zeros((Nbodies,Nnq*Nbodies, Nbodies), dtype=complex)
+        dM21_dxi = np.zeros((Nbodies,Nbodies, Nnq*Nbodies), dtype=complex)
+        dM22_dxi = np.zeros((Nbodies,Nbodies,Nbodies), dtype=complex)
+
+        dM11_dyi = np.zeros((Nbodies,Nnq*Nbodies,Nnq*Nbodies), dtype=complex)
+        dM12_dyi = np.zeros((Nbodies,Nnq*Nbodies, Nbodies), dtype=complex)
+        dM21_dyi = np.zeros((Nbodies,Nbodies, Nnq*Nbodies), dtype=complex)
+        dM22_dyi = np.zeros((Nbodies,Nbodies,Nbodies), dtype=complex)
+
+        dT = self.T_derivatives()
+        dT_dxi = dT[0]
+        dT_dxj = dT[1]
+        dT_dyi = dT[2]
+        dT_dyj = dT[3]
+
+        for kk in range(Nbodies):
+
+            for ii in range(Nbodies):
+                for jj in range(Nbodies):
+                    if ii!=jj:
+                        B = self.bodies[ii].B
+                        R = self.bodies[jj].R
+                        Btilde = self.bodies[ii].Btilde
+                        Y = self.bodies[ii].Y
+                        W = self.bodies[ii].W
+
+                        if kk==ii:
+                            ###
+                            dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxi[jj,ii].T
+
+                            dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxi[jj,ii].T @ R)[:,0]
+
+                            dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxi[jj,ii] @ Btilde.T @ Y).T)[0,:]
+
+                            dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxi[jj,ii] @ Btilde.T @ Y
+
+
+                            ###
+                            dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyi[jj,ii].T
+
+                            dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyi[jj,ii].T @ R)[:,0]
+
+                            dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyi[jj,ii] @ Btilde.T @ Y).T)[0,:]
+
+                            dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyi[jj,ii] @ Btilde.T @ Y
+
+
+                        if kk==jj:
+                            ###
+                            dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxj[jj,ii].T
+
+                            dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxj[jj,ii].T @ R)[:,0]
+
+                            dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxj[jj,ii] @ Btilde.T @ Y).T)[0,:]
+
+                            dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxj[jj,ii] @ Btilde.T @ Y
+
+                            ###
+                            dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyj[jj,ii].T
+
+                            dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyj[jj,ii].T @ R)[:,0]
+
+                            dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyj[jj,ii] @ Btilde.T @ Y).T)[0,:]
+
+                            dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyj[jj,ii] @ Btilde.T @ Y
+
+
+
+
+        return dM11_dxi, dM12_dxi, dM21_dxi, dM22_dxi, dM11_dyi, dM12_dyi, dM21_dyi, dM22_dyi
+
+
+    def gradientJ(self):
+        """
+        Computes the derivatives of the Lagrangian with respect to
+        the positions of the bodies.
+        See Eq. (4.15) of Gallizioli 2022
+        """
+        dM = self.M_derivatives()
+        Nbodies = self.Nbodies
+        A = self.scatter_coeffs
+        rao = self.rao
+
+        dM11_dxi = dM[0]
+        dM12_dxi = dM[1]
+        dM21_dxi = dM[2]
+        dM22_dxi = dM[3]
+
+        dM11_dyi = dM[4]
+        dM12_dyi = dM[5]
+        dM21_dyi = dM[6]
+        dM22_dyi = dM[7]
+
+        landa = self.landa
+        mu = self.mu
+
+        dL_dxi = np.zeros(Nbodies)
+        dL_dyi = np.zeros(Nbodies)
+
+        for ii in range(Nbodies):
+
+            dL_dxi[ii] = np.real(landa.conj().T@(dM11_dxi[ii]@A + dM12_dxi[ii]@rao) + mu.conj().T@(dM21_dxi[ii]@A + dM22_dxi[ii]@rao))
+            dL_dyi[ii] = np.real(landa.conj().T@(dM11_dyi[ii]@A + dM12_dyi[ii]@rao) + mu.conj().T@(dM21_dyi[ii]@A + dM22_dyi[ii]@rao))
+
+        gradJx = dL_dxi
+        gradJy = dL_dyi
+
+        return gradJx, gradJy
