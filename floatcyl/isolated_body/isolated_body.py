@@ -10,7 +10,7 @@ class Cylinder(object):
 
     def __init__(self, radius=1., draft=0.4, depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
-                g = 9.81):
+                g = 9.81, gamma=0, delta=0):
         """Simple constructor with kwargs.
         The choice of kwargs is just for readability. They are all
         always needed. Actually, some of them (depth, k, omega)
@@ -156,8 +156,10 @@ class Cylinder(object):
         self.mass = np.pi * a*a * draft * rho
         #hydrostatic stiffness from geometry
         self.hyd_stiff = np.pi*a*a*rho*self.g
+        #power take-off contribution
 
-        self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega - self.hyd_stiff)
+        self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega
+                                                - self.hyd_stiff + 1j*omega*gamma - delta)
 
 
     def isolated_body_matrices_diff(self, n, m):
