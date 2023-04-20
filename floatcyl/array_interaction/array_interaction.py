@@ -578,70 +578,58 @@ class Array(object):
                     for n in range(-Nn,Nn+1):
                         for l in range(-Nn,Nn+1):
                             m=0
+                            jv_h1 = jv(l,k*a)/hankel1(n,k*a)
+                            dT_dL = ((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k
+                            dT_da = hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)
 
                             dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                        jv(l,k*a)/hankel1(n,k*a)
-                                        *(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[2][ii,jj]
-                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[6][ii,jj])
+                                        jv_h1 * (dT_dL * Lder[2][ii,jj]
+                                        + dT_da * Lder[6][ii,jj])
                                         )
 
                             dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                        jv(l,k*a)/hankel1(n,k*a)*(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[4][ii,jj]
-                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[8][ii,jj])
+                                        jv_h1 * (dT_dL * Lder[4][ii,jj]
+                                        + dT_da * Lder[8][ii,jj])
                                         )
 
                             dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                        jv(l,k*a)/hankel1(n,k*a)*(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[3][ii,jj]
-                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[7][ii,jj])
+                                        jv_h1 * (dT_dL * Lder[3][ii,jj]
+                                        + dT_da * Lder[7][ii,jj])
                                         )
 
                             dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                        jv(l,k*a)/hankel1(n,k*a)*(((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k*Lder[5][ii,jj]
-                                        + hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)*Lder[9][ii,jj])
+                                        jv_h1 * (dT_dL * Lder[5][ii,jj]
+                                        + dT_da * Lder[9][ii,jj])
                                         )
 
 
 
                             for m in range(1,Nm+1):
 
+                                iv_kn = iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
+                                dT_dL = (-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
+                                            *np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*km[m-1])
+                                dT_da = kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)
+
+
                                 dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
-                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
-                                *np.exp(1j*alpha[ii,jj]*(n-l))
-                                *(-1)**l
-                                *km[m-1]
-                                *Lder[2][ii,jj]
-                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[6][ii,jj])
+                                iv_kn * (dT_dL * Lder[2][ii,jj]
+                                + dT_da * Lder[6][ii,jj])
                                 )
 
                                 dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
-                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
-                                *np.exp(1j*alpha[ii,jj]*(n-l))
-                                *(-1)**l
-                                *km[m-1]
-                                *Lder[4][ii,jj]
-                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[8][ii,jj])
+                                iv_kn * (dT_dL * Lder[4][ii,jj]
+                                + dT_da * Lder[8][ii,jj])
                                 )
 
                                 dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
-                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
-                                *np.exp(1j*alpha[ii,jj]*(n-l))
-                                *(-1)**l
-                                *km[m-1]
-                                *Lder[3][ii,jj]
-                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[7][ii,jj])
+                                iv_kn * (dT_dL * Lder[3][ii,jj]
+                                + dT_da * Lder[7][ii,jj])
                                 )
 
                                 dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
-                                *(-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
-                                *np.exp(1j*alpha[ii,jj]*(n-l))
-                                *(-1)**l
-                                *km[m-1]
-                                *Lder[5][ii,jj]
-                                + kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)*Lder[9][ii,jj])
+                                iv_kn * (dT_dL * Lder[5][ii,jj]
+                                + dT_da * Lder[9][ii,jj])
                                 )
 
 
