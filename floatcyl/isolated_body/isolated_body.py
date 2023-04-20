@@ -52,6 +52,9 @@ class Cylinder(object):
         self.water_density = water_density
         self.g = g
 
+        self.gamma = gamma
+        self.delta = delta
+
         self.clearance = depth-draft
 
         # Intermediate quantities
@@ -115,6 +118,8 @@ class Cylinder(object):
         draft = self.draft
         rho = self.water_density
 
+        gamma = self.gamma
+        delta = self.delta
 
 
         #Y
