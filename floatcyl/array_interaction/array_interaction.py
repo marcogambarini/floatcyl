@@ -848,3 +848,89 @@ class Array(object):
         gradJy = dL_dyi
 
         return gradJx, gradJy
+
+
+    def M_derivatives_damp(self):
+        """
+        Computes the derivatives of the system matrices with respect to
+        the damping coefficient.
+        See Eq. (4.36)-(4.37) in Gallizioli 2022
+        """
+        g = self.g
+        rho = self.water_density
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+        omega = self.omega
+        Nbodies = self.Nbodies
+
+        dM21_dci = np.zeros((Nbodies,Nbodies, Nnq*Nbodies), dtype=complex)
+        dM22_dci = np.zeros((Nbodies,Nbodies,Nbodies), dtype=complex)
+
+        for ii in range(Nbodies): #loop on bodies
+            W = self.bodies[ii].W
+            Btilde = self.bodies[ii].Btilde
+            Y = self.bodies[ii].Y
+
+            for jj in range(Nbodies): # loop on columns
+                for kk in range(Nbodies): # loop on rows
+                    if jj!=kk:
+                        Tij = self.basis_transformation_matrix(jj, kk, shutup=True)
+
+                        R = self.bodies[jj].R
+                        Btilde = self.bodies[kk].Btilde
+                        Y = self.bodies[kk].Y
+                        W = self.bodies[kk].W
+                        if ii==kk:
+
+                            dM21_dci[ii][kk, jj*Nnq:(jj+1)*Nnq] = -1/(W**2)*omega/(rho*g)*((Tij@Btilde.T@Y).T)
+                            dM22_dci[ii][kk, jj] = -1/(W**2)*(R.T@Tij@Btilde.T@Y)*omega/(rho*g)
+
+        return dM21_dci, dM22_dci
+
+
+    def gradientJ_damp(self):
+        """
+        Computes the gradient of the Lagrangian with respect to the
+        damping coefficients.
+        See Eq. (4.35), (4.38) of Gallizioli 2022.
+        """
+        rao = self.rao
+        A = self.scatter_coeffs
+
+        omega = self.omega
+        Nbodies = self.Nbodies
+        mu = self.mu
+        Nn = self.Nn
+        Nq = self.Nq
+        k = self.k
+        beta = self.beta
+        g = self.g
+        rho = self.water_density
+        Mder = self.M_derivatives_damp()
+        dM21_dci = Mder[0]
+        dM22_dci = Mder[1]
+
+        DP = np.zeros(Nbodies)
+        Dh = np.zeros((Nbodies,Nbodies), dtype=complex)
+        dL_dci = np.zeros(Nbodies)
+
+
+        for ii in range(Nbodies):
+            a = self.bodies[ii].radius
+            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+            W = self.bodies[ii].W
+            Y = self.bodies[ii].Y
+            DP[ii] = np.real(-0.5 *omega**2 *rao[ii].conj().T@rao[ii])
+
+            for jj in range(Nbodies):
+                if jj==ii:
+                    Btilde = self.bodies[ii].Btilde
+                    Dh[ii,jj] = 1/(W**2) * inc_wave_coeffs.T @ Btilde.T @ Y *omega / (rho*g)
+
+        for ii in range(Nbodies):
+            dL_dci[ii] = (DP[ii]
+                +np.real(mu.conj().T@(dM21_dci[ii]@A
+                +dM22_dci[ii]@rao)-mu.conj().T@Dh[ii]))
+
+        return dL_dci
