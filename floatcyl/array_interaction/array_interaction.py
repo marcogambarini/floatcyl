@@ -143,6 +143,9 @@ class Array(object):
         self.M21 = M21
         self.M22 = M22
 
+        self.h1 = h1
+        self.h2 = h2
+
 
         # Build matrix M and vector h from blocks
         M = np.block([[M11, M12],[M21,M22]])
@@ -725,48 +728,82 @@ class Array(object):
 
                         if kk==ii:
                             ###
-                            dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxi[jj,ii].T
+                            dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxj[jj,kk].T
 
-                            dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxi[jj,ii].T @ R)[:,0]
+                            dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxj[jj,kk].T @ R)[:,0]
 
-                            dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxi[jj,ii] @ Btilde.T @ Y).T)[0,:]
+                            dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxj[jj,kk] @ Btilde.T @ Y).T)[0,:]
 
-                            dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxi[jj,ii] @ Btilde.T @ Y
+                            dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxj[jj,kk] @ Btilde.T @ Y
 
 
                             ###
-                            dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyi[jj,ii].T
+                            dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyj[jj,kk].T
 
-                            dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyi[jj,ii].T @ R)[:,0]
+                            dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyj[jj,kk].T @ R)[:,0]
 
-                            dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyi[jj,ii] @ Btilde.T @ Y).T)[0,:]
+                            dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyj[jj,kk] @ Btilde.T @ Y).T)[0,:]
 
-                            dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyi[jj,ii] @ Btilde.T @ Y
+                            dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyj[jj,kk] @ Btilde.T @ Y
 
 
                         if kk==jj:
                             ###
-                            dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxj[jj,ii].T
+                            dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxi[kk,ii].T
 
-                            dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxj[jj,ii].T @ R)[:,0]
+                            dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxi[kk,ii].T @ R)[:,0]
 
-                            dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxj[jj,ii] @ Btilde.T @ Y).T)[0,:]
+                            dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxi[kk,ii] @ Btilde.T @ Y).T)[0,:]
 
-                            dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxj[jj,ii] @ Btilde.T @ Y
+                            dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxi[kk,ii] @ Btilde.T @ Y
 
                             ###
-                            dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyj[jj,ii].T
+                            dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyi[kk,ii].T
 
-                            dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyj[jj,ii].T @ R)[:,0]
+                            dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyi[kk,ii].T @ R)[:,0]
 
-                            dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyj[jj,ii] @ Btilde.T @ Y).T)[0,:]
+                            dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyi[kk,ii] @ Btilde.T @ Y).T)[0,:]
 
-                            dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyj[jj,ii] @ Btilde.T @ Y
+                            dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyi[kk,ii] @ Btilde.T @ Y
 
 
 
 
         return dM11_dxi, dM12_dxi, dM21_dxi, dM22_dxi, dM11_dyi, dM12_dyi, dM21_dyi, dM22_dyi
+
+    def h_derivatives(self):
+        """
+        Computes the derivatives of the rhs blocks of the primal system
+        (needed to assemble the gradient) with respect to the
+        positions of the bodies.
+        Amended on 20/04/23 (TODO: document!)
+        """
+        k = self.k[0]
+        beta = self.beta
+        Nbodies = self.Nbodies
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+
+        dh1_dxi = np.zeros((Nbodies, Nnq*Nbodies, 1), dtype=complex)
+        dh2_dxi = np.zeros((Nbodies, Nbodies, 1), dtype=complex)
+        dh1_dyi = np.zeros((Nbodies, Nnq*Nbodies, 1), dtype=complex)
+        dh2_dyi = np.zeros((Nbodies, Nbodies, 1), dtype=complex)
+
+        for ii in range(Nbodies):
+            a = self.bodies[ii].radius
+            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+            B = self.bodies[ii].B
+            W = self.bodies[ii].W
+            Btilde = self.bodies[ii].Btilde
+            Y = self.bodies[ii].Y
+
+            dh1_dxi[ii,ii*Nnq:(ii+1)*Nnq,:] = -1j*k*np.cos(beta)*B@inc_wave_coeffs
+            dh2_dxi[ii,ii] = -1j*k*np.cos(beta)*1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+            dh1_dyi[ii,ii*Nnq:(ii+1)*Nnq,:] = -1j*k*np.sin(beta)*B@inc_wave_coeffs
+            dh2_dyi[ii,ii] = -1j*k*np.sin(beta)*1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+
+        return dh1_dxi, dh2_dxi, dh1_dyi, dh2_dyi
 
 
     def gradientJ(self):
@@ -779,6 +816,10 @@ class Array(object):
         Nbodies = self.Nbodies
         A = self.scatter_coeffs
         rao = self.rao
+        k = self.k
+        h1 = self.h1
+        h2 = self.h2
+        beta = self.beta
 
         dM11_dxi = dM[0]
         dM12_dxi = dM[1]
@@ -790,6 +831,13 @@ class Array(object):
         dM21_dyi = dM[6]
         dM22_dyi = dM[7]
 
+        dh = self.h_derivatives()
+
+        dh1_dxi = dh[0]
+        dh2_dxi = dh[1]
+        dh1_dyi = dh[2]
+        dh2_dyi = dh[3]
+
         landa = self.landa
         mu = self.mu
 
@@ -798,8 +846,15 @@ class Array(object):
 
         for ii in range(Nbodies):
 
-            dL_dxi[ii] = np.real(landa.conj().T@(dM11_dxi[ii]@A + dM12_dxi[ii]@rao) + mu.conj().T@(dM21_dxi[ii]@A + dM22_dxi[ii]@rao))
-            dL_dyi[ii] = np.real(landa.conj().T@(dM11_dyi[ii]@A + dM12_dyi[ii]@rao) + mu.conj().T@(dM21_dyi[ii]@A + dM22_dyi[ii]@rao))
+            dL_dxi[ii] = np.real(landa.conj().T@(dM11_dxi[ii]@A + dM12_dxi[ii]@rao -
+                                                    dh1_dxi[ii]) +
+                                 mu.conj().T@(dM21_dxi[ii]@A + dM22_dxi[ii]@rao -
+                                                    dh2_dxi[ii]) )
+            dL_dyi[ii] = np.real(landa.conj().T@(dM11_dyi[ii]@A + dM12_dyi[ii]@rao -
+                                                    dh1_dyi[ii]) +
+                                 mu.conj().T@(dM21_dyi[ii]@A + dM22_dyi[ii]@rao -
+                                                    dh2_dyi[ii]) )
+
 
         gradJx = dL_dxi
         gradJy = dL_dyi
