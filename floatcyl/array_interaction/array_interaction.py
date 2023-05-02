@@ -485,6 +485,39 @@ class Array(object):
         return psi
 
 
+    def compute_power(self, H, individual=False):
+        """
+        Computes the power of the array for monochromatic waves of
+        height H. Works only for point absorbers, not for OWC!
+
+        Parameters
+        ----------
+        H: float
+            Monochromatic wave height
+        individual: boolean
+            Whether to return a list of the powers of the single devices
+            (true) or just the total power (false)
+
+        Return
+        ------
+        P: float (if individual=False) or array (if individual=True)
+            Power
+        """
+        Nbodies = self.Nbodies
+        rao = self.rao
+        omega = self.omega
+        bodies = self.bodies
+
+        P_individual = np.zeros(Nbodies)
+
+        for ii in range(Nbodies):
+            P_individual[ii] = (
+                0.5 * H**2 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
+
+        if individual:
+            return P_individual
+        else:
+            return np.sum(P_individual)
 
 
     def L_derivatives(self):
