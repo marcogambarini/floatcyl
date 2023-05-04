@@ -10,7 +10,7 @@ class Cylinder(object):
 
     def __init__(self, radius=1., draft=0.4, depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
-                g = 9.81, gamma=0, delta=0):
+                g = 9.81, gamma=0, delta=0, torque_coeff=None):
         """Simple constructor with kwargs.
         The choice of kwargs is just for readability. They are all
         always needed. Actually, some of them (depth, k, omega)
@@ -40,6 +40,13 @@ class Cylinder(object):
             water density (default: 1000.)
         g: float
             gravitational field (default: 9.81)
+        gamma: float
+            Damping coefficient of the electrical generator or turbine
+        delta: float
+            Stiffness coefficient of the electrical generator
+        torque_coeff: array
+            Polynomial coefficients of the produced power (they multiply
+            the powers of velocity amplitude)
         """
         self.radius = radius
         self.draft = draft
@@ -54,6 +61,7 @@ class Cylinder(object):
 
         self.gamma = gamma
         self.delta = delta
+        self.torque_coeff = torque_coeff
 
         self.clearance = depth-draft
 
@@ -162,6 +170,7 @@ class Cylinder(object):
         #hydrostatic stiffness from geometry
         self.hyd_stiff = np.pi*a*a*rho*self.g
         #power take-off contribution
+
 
         self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega
                                                 - self.hyd_stiff + 1j*omega*gamma - delta)

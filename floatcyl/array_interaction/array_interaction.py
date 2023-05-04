@@ -6,6 +6,7 @@ from scipy.sparse import coo_matrix
 
 from floatcyl.utils.utils import *
 
+
 class Array(object):
 
     def __init__(self, beta=0., depth=30., k=0.01,
@@ -485,10 +486,10 @@ class Array(object):
         return psi
 
 
-    def compute_power(self, H, individual=False):
+    def compute_power(self, H, individual=False, OWC=False):
         """
         Computes the power of the array for monochromatic waves of
-        height H. Works only for point absorbers, not for OWC!
+        height H.
 
         Parameters
         ----------
@@ -511,8 +512,14 @@ class Array(object):
         P_individual = np.zeros(Nbodies)
 
         for ii in range(Nbodies):
-            P_individual[ii] = (
-                0.5 * H**2 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
+            b = bodies[ii].torque_coeff
+            if OWC:
+                for jj in range(len(b)):
+                    # print('term = ', b[jj] * omega**(2*jj) * (H/2*np.abs(rao[ii]))**(2*jj))
+                    P_individual[ii] += b[jj] * omega**(2*jj) * (H/2*np.abs(rao[ii]))**(2*jj)
+            else:
+                P_individual[ii] = (
+                    0.5 * H**2 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
 
         if individual:
             return P_individual
@@ -669,10 +676,16 @@ class Array(object):
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self):
+    def adjoint_equations(self, H, OWC=False):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
+
+        Parameters
+        ----------
+        OWC: boolean
+            Whether to use the formulation of the RHS for oscillating water
+            columns with immersed turbine (default: False)
         """
         Nbodies = self.Nbodies
         Nn = self.Nn
@@ -686,12 +699,23 @@ class Array(object):
 
         rao = self.rao
 
+        bodies = self.bodies
+
         C = np.zeros((Nbodies,Nbodies))
         for ii in range(Nbodies):
-            C[ii,ii] = self.bodies[ii].gamma
+            C[ii,ii] = bodies[ii].gamma
 
         h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
-        h2 = self.omega**2 * C@rao
+        if OWC:
+            h2 = np.zeros((Nbodies, 1), dtype=complex)
+            for ii in range(Nbodies):
+                b = bodies[ii].torque_coeff
+                z = rao[ii]
+                for jj in range(len(b)):
+                    h2[ii] += ((H/2)**(2*jj) * b[jj] * 2*jj * self.omega**(2*jj) *
+                                np.conj(z)**(jj-1) * z**jj)
+        else:
+            h2 = self.omega**2 * C@rao
 
         M11H = M11.conj().T
         M12H = M12.conj().T
