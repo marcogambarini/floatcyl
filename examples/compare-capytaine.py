@@ -108,8 +108,8 @@ for ii, omega in enumerate(omegavec):
     print("phase = ", np.angle(x_fcl)*180/np.pi, ' deg')
 
     ######################## COMPARISON #######################
-    amp_diff = np.abs(x_fcl - x_cap)/(np.abs(x_cap))
-    print('amplitude difference = ', amp_diff, ' %')
+    amp_diff = (np.abs(x_fcl) - np.abs(x_cap))/(np.abs(x_cap))
+    print('amplitude difference = ', amp_diff*100, ' %')
     phase_diff = (np.angle(x_fcl) - np.angle(x_cap)) * 180/np.pi
     print('phase difference = ', phase_diff, 'deg')
 
@@ -122,7 +122,7 @@ import matplotlib.pyplot as plt
 
 body_index = 1 # index of the body for which to plot the results
 
-# Correct and unwrapp phases for comparison
+# Correct and unwrap phases for comparison
 fcl_phase = np.unwrap(np.angle(x_fcl_mat[:, body_index])-np.pi/2)*180/np.pi
 cap_phase = np.unwrap(np.angle(x_cap_mat[:, body_index]))*180/np.pi
 
