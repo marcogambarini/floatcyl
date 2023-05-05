@@ -486,7 +486,7 @@ class Array(object):
         return psi
 
 
-    def compute_power(self, H, individual=False, OWC=False):
+    def compute_power(self, H=2., individual=False, OWC=False):
         """
         Computes the power of the array for monochromatic waves of
         height H.
@@ -583,7 +583,6 @@ class Array(object):
 
         return L, alpha, dL_dxi, dL_dxj, dL_dyi, dL_dyj, dalpha_dxi, dalpha_dxj, dalpha_dyi, dalpha_dyj
 
-
     def T_derivatives(self):
         """
         Computes the derivatives of the basis transformation matrices
@@ -642,41 +641,47 @@ class Array(object):
                                         + dT_da * Lder[9][ii,jj])
                                         )
 
+                            # precomputations so that loops are vectorized by scipy
+                            iv_kn_vec = iv(l,km*a)/kn(n,km*a)
+                            dT_dL_vec = (-0.5*(kn(n-l-1,km*L[ii,jj])+kn(n-l+1,km*L[ii,jj]))
+                                        *np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*km)
+                            dT_da_vec = kn(n-l,km*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)
 
+                            dT_dxi_vec = (iv_kn_vec * (dT_dL_vec * Lder[2][ii,jj]
+                                + dT_da_vec * Lder[6][ii,jj]))
+                            dT_dyi_vec = (iv_kn_vec * (dT_dL_vec * Lder[4][ii,jj]
+                                + dT_da_vec * Lder[8][ii,jj]))
+                            dT_dxj_vec = (iv_kn_vec * (dT_dL_vec * Lder[3][ii,jj]
+                                + dT_da_vec * Lder[7][ii,jj]))
+                            dT_dyj_vec = (iv_kn_vec * (dT_dL_vec * Lder[5][ii,jj]
+                                + dT_da_vec * Lder[9][ii,jj]))
 
                             for m in range(1,Nm+1):
 
-                                iv_kn = iv(l,km[m-1]*a)/kn(n,km[m-1]*a)
-                                dT_dL = (-0.5*(kn(n-l-1,km[m-1]*L[ii,jj])+kn(n-l+1,km[m-1]*L[ii,jj]))
-                                            *np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*km[m-1])
-                                dT_da = kn(n-l,km[m-1]*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)
+                                indn = vector_index(n,m,Nn,Nm)
+                                indl = vector_index(l,m,Nn,Nm)
 
-
-                                dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv_kn * (dT_dL * Lder[2][ii,jj]
-                                + dT_da * Lder[6][ii,jj])
+                                dT_dxi[ii,jj][indn, indl] = (
+                                    dT_dxi_vec[m-1]
                                 )
 
-                                dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv_kn * (dT_dL * Lder[4][ii,jj]
-                                + dT_da * Lder[8][ii,jj])
+                                dT_dyi[ii,jj][indn, indl] = (
+                                    dT_dyi_vec[m-1]
                                 )
 
-                                dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv_kn * (dT_dL * Lder[3][ii,jj]
-                                + dT_da * Lder[7][ii,jj])
+                                dT_dxj[ii,jj][indn, indl] = (
+                                    dT_dxj_vec[m-1]
                                 )
 
-                                dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                                iv_kn * (dT_dL * Lder[5][ii,jj]
-                                + dT_da * Lder[9][ii,jj])
+                                dT_dyj[ii,jj][indn, indl] = (
+                                    dT_dyj_vec[m-1]
                                 )
 
 
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self, H, OWC=False):
+    def adjoint_equations(self, H=2., OWC=False):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -730,7 +735,7 @@ class Array(object):
         self.landa = z[:Nnq*Nbodies]
         self.mu = z[Nnq*Nbodies:]
 
-
+    #@profile    
     def M_derivatives(self):
         """
         Computes the derivatives of the matrix blocks of the primal
