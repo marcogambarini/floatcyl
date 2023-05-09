@@ -277,6 +277,9 @@ class Array(object):
         L_ij = np.sqrt((xi-xj)*(xi-xj) + (yi-yj)*(yi-yj))
         alpha_ij = np.arctan2((yj-yi),(xj-xi))
 
+        if L_ij < (ai + aj):
+            raise RuntimeError('Overlapping bodies: cannot compute the basis transformation matrix')
+
         if not shutup:
             print("i = ", ii, ", j = ", jj)
             print("L_ij = ", L_ij)
