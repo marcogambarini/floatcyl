@@ -101,7 +101,8 @@ for ii, omega in enumerate(omegavec):
     # 5) build the full matrix and solve the problem
     cylArray.solve()
 
-    x_fcl = np.array(cylArray.rao)[:, 0]
+    #x_fcl = np.array(cylArray.rao)[:, 0]
+    x_fcl = np.array(cylArray.rao)
     x_fcl_mat[ii, :] = x_fcl
 
     print("oscillation amplitude, Floatcyl = ", x_fcl)
