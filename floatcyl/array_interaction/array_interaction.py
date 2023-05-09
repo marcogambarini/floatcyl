@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.special import *
 from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import LinearOperator, gmres
 
 from floatcyl.utils.utils import *
 
@@ -97,69 +98,158 @@ class Array(object):
 
         Nbodies = self.Nbodies
 
-        M11 = -np.eye(Nnq*Nbodies, dtype=complex)
-        M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
-        M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
-        M22 = np.eye(Nbodies, dtype=complex)
+        if self.denseops:
 
-        h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
-        h2 = np.zeros((Nbodies, 1), dtype=complex)
+            M11 = -np.eye(Nnq*Nbodies, dtype=complex)
+            M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
+            M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
+            M22 = np.eye(Nbodies, dtype=complex)
 
-        for ii in range(Nbodies):
-            k = self.k
-            beta = self.beta
-            a = self.bodies[ii].radius
-            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
-            B = self.bodies[ii].B
-            W = self.bodies[ii].W
-            Btilde = self.bodies[ii].Btilde
-            Y = self.bodies[ii].Y
-            h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
-            h2[ii] = -1/W * inc_wave_coeffs.T @ Btilde.T @ Y
-            #h2[ii] = (-1j)*-1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+            h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
+            h2 = np.zeros((Nbodies, 1), dtype=complex)
 
-            for jj in range(Nbodies):
-                if not (ii==jj):
-                    Tij = self.basis_transformation_matrix(jj, ii, shutup=True)
+            for ii in range(Nbodies):
+                k = self.k
+                beta = self.beta
+                a = self.bodies[ii].radius
+                inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+                B = self.bodies[ii].B
+                W = self.bodies[ii].W
+                Btilde = self.bodies[ii].Btilde
+                Y = self.bodies[ii].Y
+                h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
+                h2[ii] = -1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+                #h2[ii] = (-1j)*-1/W * inc_wave_coeffs.T @ Btilde.T @ Y
 
-                    B = self.bodies[jj].B
-                    R = self.bodies[ii].R
-                    Btilde = self.bodies[jj].Btilde
-                    Y = self.bodies[jj].Y
+                for jj in range(Nbodies):
+                    if not (ii==jj):
+                        Tij = self.basis_transformation_matrix(jj, ii, shutup=True)
 
-                    #block matrix filling of matrix M11
-                    M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = (B @ Tij.T).toarray()
-                    self.M11 = M11 #for debugging and checking the spectral radius
+                        B = self.bodies[jj].B
+                        R = self.bodies[ii].R
+                        Btilde = self.bodies[jj].Btilde
+                        Y = self.bodies[jj].Y
 
-                    #block column-vector filling of matrix M12
-                    M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ Tij.T @ R)[:,0]
+                        #block matrix filling of matrix M11
+                        M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = (B @ Tij.T).toarray()
 
-                    #block row-vector filling of matrix M21
-                    M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij @ Btilde.T @ Y).T)[0,:]
+                        #block column-vector filling of matrix M12
+                        M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ Tij.T @ R)[:,0]
 
-                    #elementwise filling of matrix M22
-                    M22[ii, jj] = 1/W * R.T @ Tij @ Btilde.T @ Y
+                        #block row-vector filling of matrix M21
+                        M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij @ Btilde.T @ Y).T)[0,:]
 
-        # Save blocks for use in optimization routines
-        self.M11 = M11
-        self.M12 = M12
-        self.M21 = M21
-        self.M22 = M22
+                        #elementwise filling of matrix M22
+                        M22[ii, jj] = 1/W * R.T @ Tij @ Btilde.T @ Y
 
-        self.h1 = h1
-        self.h2 = h2
+            # Save blocks for use in optimization routines
+            self.M11 = M11
+            self.M12 = M12
+            self.M21 = M21
+            self.M22 = M22
 
-
-        # Build matrix M and vector h from blocks
-        M = np.block([[M11, M12],[M21,M22]])
-        hh = np.block([[h1],[h2]])
+            self.h1 = h1
+            self.h2 = h2
 
 
+            # Build matrix M and vector h from blocks
+            M = np.block([[M11, M12],[M21,M22]])
+            hh = np.block([[h1],[h2]])
 
-        # Solve the system
-        z = np.linalg.solve(M, hh)
-        self.scatter_coeffs = z[:Nnq*Nbodies]
-        self.rao = z[Nnq*Nbodies:]
+
+
+            # Solve the system
+            z = np.linalg.solve(M, hh)
+            self.scatter_coeffs = z[:Nnq*Nbodies]
+            self.rao = z[Nnq*Nbodies:]
+
+        else:
+            # sparse operations
+            M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
+            M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
+            M22 = np.eye(Nbodies, dtype=complex)
+
+            h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
+            h2 = np.zeros((Nbodies, 1), dtype=complex)
+
+            Tij = {}
+
+            for ii in range(Nbodies):
+                k = self.k
+                beta = self.beta
+                a = self.bodies[ii].radius
+                inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+                B = self.bodies[ii].B
+                W = self.bodies[ii].W
+                Btilde = self.bodies[ii].Btilde
+                Y = self.bodies[ii].Y
+                h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
+                h2[ii] = -1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+                #h2[ii] = (-1j)*-1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+
+                for jj in range(Nbodies):
+                    if not (ii==jj):
+                        Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
+
+                        B = self.bodies[jj].B
+                        R = self.bodies[ii].R
+                        Btilde = self.bodies[jj].Btilde
+                        Y = self.bodies[jj].Y
+
+                        #block column-vector filling of matrix M12
+                        M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ (Tij[ii, jj].T @ R))[:,0]
+
+                        #block row-vector filling of matrix M21
+                        M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij[ii, jj] @ (Btilde.T @ Y)).T)[0,:]
+
+                        #elementwise filling of matrix M22
+                        M22[ii, jj] = 1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)
+
+            # Save blocks for use in optimization routines
+
+            def M11v(v):
+                mv = np.zeros(len(v), dtype=complex)
+                for ii in range(Nbodies):
+                    for jj in range(Nbodies):
+                        if not (ii==jj):
+                            mv[ii*Nnq:(ii+1)*Nnq] += (
+                                self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
+
+                # identity contribution in return
+                return -v + mv
+
+            M11 = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11v)
+
+            self.M11 = M11
+            self.M12 = M12
+            self.M21 = M21
+            self.M22 = M22
+
+            self.h1 = h1
+            self.h2 = h2
+
+
+            # Build matrix M and vector h from blocks
+            def Mv(v):
+                mv = np.zeros(len(v), dtype=complex)
+                mv[:Nnq*Nbodies] += M11@v[:Nnq*Nbodies]
+                mv[:Nnq*Nbodies] += M12@v[Nnq*Nbodies:]
+                mv[Nnq*Nbodies:] += M21@v[:Nnq*Nbodies]
+                mv[Nnq*Nbodies:] += M22@v[Nnq*Nbodies:]
+
+                return mv
+
+            M = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=Mv)
+            hh = np.block([[h1],[h2]])
+
+
+
+            # Solve the system
+            z, info = gmres(M, hh)
+            print('Computed solution')
+            print('z.shape = ', z.shape)
+            self.scatter_coeffs = z[:Nnq*Nbodies]
+            self.rao = z[Nnq*Nbodies:]
 
 
     def compute_free_surface(self, x, y):
