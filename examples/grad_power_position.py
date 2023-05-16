@@ -12,7 +12,9 @@ g = 9.81
 a = 1.
 draft = 0.5
 
-h = 0.001
+h = 0.000001
+
+denseops = False
 
 # Dispersion relation
 k = fcl.real_disp_rel(omega, depth)
@@ -31,7 +33,7 @@ body = fcl.Cylinder(radius=a, draft=draft, omega=omega, depth=depth,
 
 # define array
 cylArray0 = fcl.Array(beta=beta, depth=depth, k=k, kq=kq, Nn=Nn, Nq=Nq,
-                    omega=omega, water_density=rho, g=g)
+                    omega=omega, water_density=rho, g=g, denseops=denseops)
 
 var_index = 2
 
@@ -55,6 +57,8 @@ for ii in range(Nbodies):
     P_array0 = P_array0 + np.abs(rao[ii])**2 * omega*omega /2 * H*H * body.gamma
 J_0 = -P_array0
 
+print('Initial cost = ', J_0)
+
 start_time = perf_counter()
 cylArray0.adjoint_equations()
 gradJ = cylArray0.gradientJ() # separated gradients in x and y
@@ -63,7 +67,7 @@ print('time for gradient computation through adjoint = ', perf_counter() - start
 def compute_fd(x_h, y_h):
     # define array
     cylArray_h = fcl.Array(beta=beta, depth=depth, k=k, kq=kq, Nn=Nn, Nq=Nq,
-                        omega=omega, water_density=rho, g=g)
+                        omega=omega, water_density=rho, g=g, denseops=denseops)
     for ii in range(Nbodies):
         cylArray_h.add_body(x_h[ii], y_h[ii], body)
 

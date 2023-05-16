@@ -224,6 +224,7 @@ class Array(object):
             self.M12 = M12
             self.M21 = M21
             self.M22 = M22
+            self.Tij = Tij
 
             self.h1 = h1
             self.h2 = h2
@@ -246,10 +247,10 @@ class Array(object):
 
             # Solve the system
             z, info = gmres(M, hh)
-            print('Computed solution')
-            print('z.shape = ', z.shape)
-            self.scatter_coeffs = z[:Nnq*Nbodies]
-            self.rao = z[Nnq*Nbodies:]
+            self.scatter_coeffs = np.zeros((Nnq*Nbodies, 1), dtype=complex)
+            self.scatter_coeffs[:,0] = z[:Nnq*Nbodies]
+            self.rao = np.zeros((Nbodies, 1), dtype=complex)
+            self.rao[:,0] = z[Nnq*Nbodies:]
 
 
     def compute_free_surface(self, x, y):
@@ -698,16 +699,34 @@ class Array(object):
         L = Lder[0]
         alpha = Lder[1]
 
-        dT_dxi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
-        dT_dxj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        # dT_dxi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        # dT_dxj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        #
+        # dT_dyi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        # dT_dyj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
 
-        dT_dyi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
-        dT_dyj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
+        dT_dxi = {}
+        dT_dxj = {}
 
+        dT_dyi = {}
+        dT_dyj = {}
 
         for ii in range(Nb):
             for jj in range(Nb):
                 if ii!=jj :
+
+                    dT_dxi_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+
+                    dT_dxj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+
+                    dT_dyi_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+
+                    dT_dyj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+
+                    row_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
+                    col_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
+
+                    counter = 0
 
                     for n in range(-Nn,Nn+1):
                         for l in range(-Nn,Nn+1):
@@ -716,22 +735,40 @@ class Array(object):
                             dT_dL = ((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k
                             dT_da = hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)
 
-                            dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            # dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            #             jv_h1 * (dT_dL * Lder[2][ii,jj]
+                            #             + dT_da * Lder[6][ii,jj])
+                            #             )
+                            dT_dxi_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[2][ii,jj]
                                         + dT_da * Lder[6][ii,jj])
                                         )
+                            row_ind[counter] = vector_index(n,m,Nn,Nm)
+                            col_ind[counter] = vector_index(l,m,Nn,Nm)
 
-                            dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            # dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            #             jv_h1 * (dT_dL * Lder[4][ii,jj]
+                            #             + dT_da * Lder[8][ii,jj])
+                            #             )
+                            dT_dyi_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[4][ii,jj]
                                         + dT_da * Lder[8][ii,jj])
                                         )
 
-                            dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            # dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            #             jv_h1 * (dT_dL * Lder[3][ii,jj]
+                            #             + dT_da * Lder[7][ii,jj])
+                            #             )
+                            dT_dxj_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[3][ii,jj]
                                         + dT_da * Lder[7][ii,jj])
                                         )
 
-                            dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            # dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
+                            #             jv_h1 * (dT_dL * Lder[5][ii,jj]
+                            #             + dT_da * Lder[9][ii,jj])
+                            #             )
+                            dT_dyj_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[5][ii,jj]
                                         + dT_da * Lder[9][ii,jj])
                                         )
@@ -751,27 +788,50 @@ class Array(object):
                             dT_dyj_vec = (iv_kn_vec * (dT_dL_vec * Lder[5][ii,jj]
                                 + dT_da_vec * Lder[9][ii,jj]))
 
+                            counter +=1
+
                             for m in range(1,Nm+1):
 
                                 indn = vector_index(n,m,Nn,Nm)
                                 indl = vector_index(l,m,Nn,Nm)
 
-                                dT_dxi[ii,jj][indn, indl] = (
+                                row_ind[counter] = indn
+                                col_ind[counter] = indl
+
+                                # dT_dxi[ii,jj][indn, indl] = (
+                                #     dT_dxi_vec[m-1]
+                                # )
+                                dT_dxi_data[counter] = (
                                     dT_dxi_vec[m-1]
                                 )
 
-                                dT_dyi[ii,jj][indn, indl] = (
+                                # dT_dyi[ii,jj][indn, indl] = (
+                                #     dT_dyi_vec[m-1]
+                                # )
+                                dT_dyi_data[counter] = (
                                     dT_dyi_vec[m-1]
                                 )
 
-                                dT_dxj[ii,jj][indn, indl] = (
+                                # dT_dxj[ii,jj][indn, indl] = (
+                                #     dT_dxj_vec[m-1]
+                                # )
+                                dT_dxj_data[counter] = (
                                     dT_dxj_vec[m-1]
                                 )
 
-                                dT_dyj[ii,jj][indn, indl] = (
+                                # dT_dyj[ii,jj][indn, indl] = (
+                                #     dT_dyj_vec[m-1]
+                                # )
+                                dT_dyj_data[counter] = (
                                     dT_dyj_vec[m-1]
                                 )
 
+                                counter += 1
+
+                    dT_dxi[ii, jj] = coo_matrix((dT_dxi_data, (row_ind, col_ind)))
+                    dT_dxj[ii, jj] = coo_matrix((dT_dxj_data, (row_ind, col_ind)))
+                    dT_dyi[ii, jj] = coo_matrix((dT_dyi_data, (row_ind, col_ind)))
+                    dT_dyj[ii, jj] = coo_matrix((dT_dyj_data, (row_ind, col_ind)))
 
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
@@ -792,12 +852,8 @@ class Array(object):
         Nq = self.Nq
         Nnq = (2*Nn + 1)*(Nq + 1)
 
-        M11 = self.M11
-        M12 = self.M12
-        M21 = self.M21
-        M22 = self.M22
-
         rao = self.rao
+
 
         bodies = self.bodies
 
@@ -817,18 +873,71 @@ class Array(object):
         else:
             h2 = self.omega**2 * C@rao
 
-        M11H = M11.conj().T
-        M12H = M12.conj().T
-        M21H = M21.conj().T
-        M22H = M22.conj().T
 
-        MH = np.block([[M11H, M21H],[M12H,M22H]])
         mulan = np.block([[h1],[h2]])
 
-        # Solve the system
-        z = np.linalg.solve(MH, mulan)
-        self.landa = z[:Nnq*Nbodies]
-        self.mu = z[Nnq*Nbodies:]
+        if self.denseops:
+            M11 = self.M11
+            M12 = self.M12
+            M21 = self.M21
+            M22 = self.M22
+
+
+
+            M11H = M11.conj().T
+            M12H = M12.conj().T
+            M21H = M21.conj().T
+            M22H = M22.conj().T
+
+            MH = np.block([[M11H, M21H],[M12H,M22H]])
+
+            # Solve the system
+            z = np.linalg.solve(MH, mulan)
+            self.landa = z[:Nnq*Nbodies]
+            self.mu = z[Nnq*Nbodies:]
+        else:
+            M11 = self.M11
+            M12 = self.M12
+            M21 = self.M21
+            M22 = self.M22
+
+
+            # print('M11 is ', type(M11))
+            # print('M11.H[:,0] is', np.conj(M11.T)[:,0])
+
+
+            Tij = self.Tij
+
+            def M11Hv(v):
+                mv = np.zeros(len(v), dtype=complex)
+                for ii in range(Nbodies):
+                    for jj in range(Nbodies):
+                        if not (ii==jj):
+                            mv[jj*Nnq:(jj+1)*Nnq] += (
+                                np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+
+                # identity contribution in return
+                return -v + mv
+
+            M11H = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11Hv)
+
+            def MHv(v):
+                mv = np.zeros(len(v), dtype=complex)
+                mv[:Nnq*Nbodies] += M11H@v[:Nnq*Nbodies]
+                mv[:Nnq*Nbodies] += np.conj(M21.T)@v[Nnq*Nbodies:]
+                mv[Nnq*Nbodies:] += np.conj(M12.T)@v[:Nnq*Nbodies]
+                mv[Nnq*Nbodies:] += np.conj(M22.T)@v[Nnq*Nbodies:]
+
+                return mv
+
+            MH = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=MHv)
+
+            # Solve the system
+            z, info = gmres(MH, mulan)
+            self.landa = np.zeros((Nnq*Nbodies,1), dtype=complex)
+            self.landa[:, 0] = z[:Nnq*Nbodies]
+            self.mu = np.zeros((Nbodies, 1), dtype=complex)
+            self.mu[:, 0] = z[Nnq*Nbodies:]
 
     #@profile
     def M_derivatives(self):
