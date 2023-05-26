@@ -679,6 +679,7 @@ class Array(object):
 
         return L, alpha, dL_dxi, dL_dxj, dL_dyi, dL_dyj, dalpha_dxi, dalpha_dxj, dalpha_dyi, dalpha_dyj
 
+
     def T_derivatives(self):
         """
         Computes the derivatives of the basis transformation matrices
@@ -687,7 +688,6 @@ class Array(object):
         """
         Nn = self.Nn
         Nm = self.Nq
-        a = self.bodies[0].radius
 
         k = self.k
         km = self.kq
@@ -696,7 +696,7 @@ class Array(object):
 
         Lder = self.L_derivatives()
 
-        L = Lder[0]
+        dist = Lder[0]
         alpha = Lder[1]
 
         # dT_dxi = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
@@ -715,6 +715,21 @@ class Array(object):
             for jj in range(Nb):
                 if ii!=jj :
 
+                    ai = self.bodies[ii].radius
+                    aj = self.bodies[jj].radius
+
+
+                    jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
+                    hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
+                    hank_diff_vec = hankel1(np.arange(-2*Nn, 2*Nn+2), k*dist[ii,jj])
+                    M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
+                    iv_mat = iv(L,km[M][:,:,0]*aj)
+                    kn_mat = kn(L,km[M][:,:,0]*ai)
+                    M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+2))
+                    kn_diff_mat = kn(LL,km[M][:,:,0]*dist[ii,jj])
+                    exp_vec = np.exp(1j*alpha[ii,jj]*np.arange(-2*Nn, 2*Nn+1))
+
+
                     dT_dxi_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
 
                     dT_dxj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
@@ -731,9 +746,9 @@ class Array(object):
                     for n in range(-Nn,Nn+1):
                         for l in range(-Nn,Nn+1):
                             m=0
-                            jv_h1 = jv(l,k*a)/hankel1(n,k*a)
-                            dT_dL = ((n-l)*hankel1(n-l,k*L[ii,jj])/(k*L[ii,jj])-hankel1(n-l+1,k*L[ii,jj]))*np.exp(1j*alpha[ii,jj]*(n-l))*k
-                            dT_da = hankel1(n-l,k*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*1j*(n-l)
+                            jv_h1 = jv_vec[l+Nn]/hank_vec[n+Nn]
+                            dT_dL = ((n-l)*hank_diff_vec[n-l+2*Nn]/(k*dist[ii,jj])-hank_diff_vec[n-l+1+2*Nn])*exp_vec[n-l+2*Nn]*k
+                            dT_da = hank_diff_vec[n-l+2*Nn]*exp_vec[n-l+2*Nn]*1j*(n-l)
 
                             # dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
                             #             jv_h1 * (dT_dL * Lder[2][ii,jj]
@@ -774,10 +789,13 @@ class Array(object):
                                         )
 
                             # precomputations so that loops are vectorized by scipy
-                            iv_kn_vec = iv(l,km*a)/kn(n,km*a)
-                            dT_dL_vec = (-0.5*(kn(n-l-1,km*L[ii,jj])+kn(n-l+1,km*L[ii,jj]))
-                                        *np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*km)
-                            dT_da_vec = kn(n-l,km*L[ii,jj])*np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*1j*(n-l)
+                            #iv_kn_vec = iv(l,km*a)/kn(n,km*a)
+                            iv_kn_vec = (iv_mat[l+Nn, :]/kn_mat[n+Nn, :]).reshape((Nm, 1))
+                            #dT_dL_vec = (-0.5*(kn(n-l-1,km*dist[ii,jj])+kn(n-l+1,km*dist[ii,jj]))
+                            #            *np.exp(1j*alpha[ii,jj]*(n-l))*(-1)**l*km)
+                            dT_dL_vec = (-0.5*(kn_diff_mat[n-l-1+2*Nn,:]+kn_diff_mat[n-l+1+2*Nn,:]).reshape((Nm, 1))
+                                        *exp_vec[n-l+2*Nn]*(-1)**l*km)
+                            dT_da_vec = kn_diff_mat[n-l+2*Nn,:].reshape((Nm, 1))*exp_vec[n-l+2*Nn]*(-1)**l*1j*(n-l)
 
                             dT_dxi_vec = (iv_kn_vec * (dT_dL_vec * Lder[2][ii,jj]
                                 + dT_da_vec * Lder[6][ii,jj]))
@@ -790,43 +808,19 @@ class Array(object):
 
                             counter +=1
 
-                            for m in range(1,Nm+1):
+                            indn = vector_index(n, np.arange(1,Nm+1), Nn, Nm)
+                            indl = vector_index(l, np.arange(1,Nm+1), Nn, Nm)
 
-                                indn = vector_index(n,m,Nn,Nm)
-                                indl = vector_index(l,m,Nn,Nm)
+                            row_ind[counter:counter+Nm] = indn
+                            col_ind[counter:counter+Nm] = indl
 
-                                row_ind[counter] = indn
-                                col_ind[counter] = indl
+                            dT_dxi_data[counter:counter+Nm] = dT_dxi_vec[:,0]
+                            dT_dyi_data[counter:counter+Nm] = dT_dyi_vec[:,0]
+                            dT_dxj_data[counter:counter+Nm] = dT_dxj_vec[:,0]
+                            dT_dyj_data[counter:counter+Nm] = dT_dyj_vec[:,0]
 
-                                # dT_dxi[ii,jj][indn, indl] = (
-                                #     dT_dxi_vec[m-1]
-                                # )
-                                dT_dxi_data[counter] = (
-                                    dT_dxi_vec[m-1]
-                                )
-
-                                # dT_dyi[ii,jj][indn, indl] = (
-                                #     dT_dyi_vec[m-1]
-                                # )
-                                dT_dyi_data[counter] = (
-                                    dT_dyi_vec[m-1]
-                                )
-
-                                # dT_dxj[ii,jj][indn, indl] = (
-                                #     dT_dxj_vec[m-1]
-                                # )
-                                dT_dxj_data[counter] = (
-                                    dT_dxj_vec[m-1]
-                                )
-
-                                # dT_dyj[ii,jj][indn, indl] = (
-                                #     dT_dyj_vec[m-1]
-                                # )
-                                dT_dyj_data[counter] = (
-                                    dT_dyj_vec[m-1]
-                                )
-
-                                counter += 1
+                            counter += Nm
+                            
 
                     dT_dxi[ii, jj] = coo_matrix((dT_dxi_data, (row_ind, col_ind)))
                     dT_dxj[ii, jj] = coo_matrix((dT_dxj_data, (row_ind, col_ind)))
@@ -1058,7 +1052,6 @@ class Array(object):
             dh2_dyi[ii,ii] = -1j*k*np.sin(beta)*1/W * inc_wave_coeffs.T @ Btilde.T @ Y
 
         return dh1_dxi, dh2_dxi, dh1_dyi, dh2_dyi
-
 
     def gradientJ(self):
         """
