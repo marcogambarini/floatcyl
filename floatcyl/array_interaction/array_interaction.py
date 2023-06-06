@@ -125,10 +125,7 @@ class Array(object):
                     if not (ii==jj):
                         Tij = self.basis_transformation_matrix(jj, ii, shutup=True)
 
-                        B = self.bodies[jj].B
-                        R = self.bodies[ii].R
-                        Btilde = self.bodies[jj].Btilde
-                        Y = self.bodies[jj].Y
+                        R = self.bodies[jj].R
 
                         #block matrix filling of matrix M11
                         M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = (B @ Tij.T).toarray()
@@ -191,10 +188,7 @@ class Array(object):
                     if not (ii==jj):
                         Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
 
-                        B = self.bodies[jj].B
-                        R = self.bodies[ii].R
-                        Btilde = self.bodies[jj].Btilde
-                        Y = self.bodies[jj].Y
+                        R = self.bodies[jj].R
 
                         #block column-vector filling of matrix M12
                         M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ (Tij[ii, jj].T @ R))[:,0]
@@ -820,7 +814,7 @@ class Array(object):
                             dT_dyj_data[counter:counter+Nm] = dT_dyj_vec[:,0]
 
                             counter += Nm
-                            
+
 
                     dT_dxi[ii, jj] = coo_matrix((dT_dxi_data, (row_ind, col_ind)))
                     dT_dxj[ii, jj] = coo_matrix((dT_dxj_data, (row_ind, col_ind)))
