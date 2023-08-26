@@ -609,7 +609,7 @@ class Array(object):
                     P_individual[ii] += b[jj] * omega**(2*jj) * (H/2*np.abs(rao[ii]))**(2*jj)
             else:
                 P_individual[ii] = (
-                    0.5 * H**2 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
+                    0.5 * (H/2)**2 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
 
         if individual:
             return P_individual
