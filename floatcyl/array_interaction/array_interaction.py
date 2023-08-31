@@ -1297,6 +1297,86 @@ class Array(object):
 
         return gradJx, gradJy
 
+    def jac_positions(self):
+        """
+        Computes the Jacobian of the residual Mz-h with respect to
+        the positions. Uses sparse operations.
+        """
+        Nbodies = self.Nbodies
+        A = self.scatter_coeffs
+        rao = self.rao
+        k = self.k
+        h1 = self.h1
+        h2 = self.h2
+        beta = self.beta
+
+        dh = self.h_derivatives()
+
+        dh1_dxi = dh[0]
+        dh2_dxi = dh[1]
+        dh1_dyi = dh[2]
+        dh2_dyi = dh[3]
+
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+
+
+        dT = self.T_derivatives()
+        dT_dxi = dT[0]
+        dT_dxj = dT[1]
+        dT_dyi = dT[2]
+        dT_dyj = dT[3]
+
+        jac = np.zeros((len(A)+len(rao), Nbodies), dtype=complex)
+
+        for kk in range(Nbodies):
+            # temporary vectors for hydrodynamics and dynamics
+            temp_hyd_x = np.zeros(len(A), dtype=complex)
+            temp_dyn_x = np.zeros(len(rao), dtype=complex)
+            temp_hyd_y = np.zeros(len(A), dtype=complex)
+            temp_dyn_y = np.zeros(len(rao), dtype=complex)
+
+            for ii in range(Nbodies):
+                for jj in range(Nbodies):
+                    if ii!=jj:
+                        B = self.bodies[ii].B
+                        R = self.bodies[jj].R
+                        Btilde = self.bodies[ii].Btilde
+                        Y = self.bodies[ii].Y
+                        W = self.bodies[ii].W
+
+                        if kk==ii:
+                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxj[jj,kk].T @ R))[:,0] * rao[jj]
+                            temp_dyn_x[ii] += (1/W * (dT_dxj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            temp_dyn_x[ii] += 1/W * (R.T @ dT_dxj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+
+                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyj[jj,kk].T @ R))[:,0] * rao[jj]
+                            temp_dyn_y[ii] += (1/W * (dT_dyj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            temp_dyn_y[ii] += 1/W * (R.T @ dT_dyj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+
+
+                        if kk==jj:
+                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxi[kk,ii].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxi[kk,ii].T @ R))[:,0] * rao[jj]
+                            temp_dyn_x[ii] += (1/W * (dT_dxi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            temp_dyn_x[ii] += 1/W * (R.T @ dT_dxi[kk,ii]) @ (Btilde.T @ Y) * rao[jj]
+
+                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyi[kk,ii].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyi[kk,ii].T @ R))[:,0] * rao[jj]
+                            temp_dyn_y[ii] += (1/W * (dT_dyi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            temp_dyn_y[ii] += 1/W * (R.T @ dT_dyi[kk,ii]) @ (Btilde.T @ Y) * rao[jj]
+
+            jac[:len(A),kk] = temp_hyd_x
+            jac[len(A):,kk] = temp_dyn_x
+            jac[:len(A),kk+Nbodies] = temp_hyd_y
+            jac[len(A):,kk+Nbodies] = temp_dyn_y
+
+            return jac
+
+
 
     def M_derivatives_damp(self):
         """
