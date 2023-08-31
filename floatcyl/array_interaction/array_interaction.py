@@ -187,7 +187,7 @@ class Array(object):
 
         MH = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=MHv)
 
-        return M, MH, hh
+        return M, MH, hh[:,0]
 
 
     def solve(self):
