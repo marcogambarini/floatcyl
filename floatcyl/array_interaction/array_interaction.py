@@ -1328,7 +1328,7 @@ class Array(object):
         dT_dyi = dT[2]
         dT_dyj = dT[3]
 
-        jac = np.zeros((len(A)+len(rao), Nbodies), dtype=complex)
+        jac = np.zeros((len(A)+len(rao), 2*Nbodies), dtype=complex)
 
         for kk in range(Nbodies):
             # temporary vectors for hydrodynamics and dynamics
@@ -1369,12 +1369,12 @@ class Array(object):
                             temp_dyn_y[ii] += (1/W * (dT_dyi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
                             temp_dyn_y[ii] += 1/W * (R.T @ dT_dyi[kk,ii]) @ (Btilde.T @ Y) * rao[jj]
 
-            jac[:len(A),kk] = temp_hyd_x
-            jac[len(A):,kk] = temp_dyn_x
-            jac[:len(A),kk+Nbodies] = temp_hyd_y
-            jac[len(A):,kk+Nbodies] = temp_dyn_y
+            jac[:len(A),kk] = temp_hyd_x - dh1_dxi[kk][:,0]
+            jac[len(A):,kk] = temp_dyn_x - dh2_dxi[kk][:,0]
+            jac[:len(A),kk+Nbodies] = temp_hyd_y - dh1_dyi[kk][:,0]
+            jac[len(A):,kk+Nbodies] = temp_dyn_y - dh2_dyi[kk][:,0]
 
-            return jac
+        return jac
 
 
 
