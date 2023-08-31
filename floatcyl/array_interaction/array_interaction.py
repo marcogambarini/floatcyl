@@ -86,6 +86,110 @@ class Array(object):
 
         self.Nbodies = self.Nbodies+1
 
+    def expose_operators(self):
+        """Exposes the system operator, its hermitian and the rhs of
+        the system. Sparse matrices + linear operators are used.
+        """
+
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+
+        Nbodies = self.Nbodies
+
+        M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
+        M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
+        M22 = np.eye(Nbodies, dtype=complex)
+
+        h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
+        h2 = np.zeros((Nbodies, 1), dtype=complex)
+
+        Tij = {}
+
+        for ii in range(Nbodies):
+            k = self.k
+            beta = self.beta
+            a = self.bodies[ii].radius
+            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+            B = self.bodies[ii].B
+            W = self.bodies[ii].W
+            Btilde = self.bodies[ii].Btilde
+            Y = self.bodies[ii].Y
+            h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
+            h2[ii] = -1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+            #h2[ii] = (-1j)*-1/W * inc_wave_coeffs.T @ Btilde.T @ Y
+
+            for jj in range(Nbodies):
+                if not (ii==jj):
+                    Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
+
+                    R = self.bodies[jj].R
+
+                    #block column-vector filling of matrix M12
+                    M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ (Tij[ii, jj].T @ R))[:,0]
+
+                    #block row-vector filling of matrix M21
+                    M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij[ii, jj] @ (Btilde.T @ Y)).T)[0,:]
+
+                    #elementwise filling of matrix M22
+                    M22[ii, jj] = 1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)
+
+        # Save blocks for use in optimization routines
+
+        def M11v(v):
+            mv = np.zeros(len(v), dtype=complex)
+            for ii in range(Nbodies):
+                for jj in range(Nbodies):
+                    if not (ii==jj):
+                        mv[ii*Nnq:(ii+1)*Nnq] += (
+                            self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
+
+            # identity contribution in return
+            return -v + mv
+
+        M11 = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11v)
+
+
+        # Build matrix M and vector h from blocks
+        def Mv(v):
+            mv = np.zeros(len(v), dtype=complex)
+            mv[:Nnq*Nbodies] += M11@v[:Nnq*Nbodies]
+            mv[:Nnq*Nbodies] += M12@v[Nnq*Nbodies:]
+            mv[Nnq*Nbodies:] += M21@v[:Nnq*Nbodies]
+            mv[Nnq*Nbodies:] += M22@v[Nnq*Nbodies:]
+
+            return mv
+
+        M = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=Mv)
+        hh = np.block([[h1],[h2]])
+
+        def M11Hv(v):
+            mv = np.zeros(len(v), dtype=complex)
+            for ii in range(Nbodies):
+                for jj in range(Nbodies):
+                    if not (ii==jj):
+                        mv[jj*Nnq:(jj+1)*Nnq] += (
+                            np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+
+            # identity contribution in return
+            return -v + mv
+
+        M11H = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11Hv)
+
+        def MHv(v):
+            mv = np.zeros(len(v), dtype=complex)
+            mv[:Nnq*Nbodies] += M11H@v[:Nnq*Nbodies]
+            mv[:Nnq*Nbodies] += np.conj(M21.T)@v[Nnq*Nbodies:]
+            mv[Nnq*Nbodies:] += np.conj(M12.T)@v[:Nnq*Nbodies]
+            mv[Nnq*Nbodies:] += np.conj(M22.T)@v[Nnq*Nbodies:]
+
+            return mv
+
+        MH = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=MHv)
+
+        return M, MH, hh
+
+
     def solve(self):
         """Assembles and solves the full array system.
         See Eq. (4.11) - (4.15) in Child 2011.
