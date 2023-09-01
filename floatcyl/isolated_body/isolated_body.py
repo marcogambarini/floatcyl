@@ -163,7 +163,7 @@ class Cylinder(object):
         #equiv area is eq. (3.150)
         equiv_area = -1j * omega*omega*np.pi/(2*self.g*h) * (
                     h*h*a*a - 0.25*a*a*a*a) + self.Rtilde.T@self.Y
-
+        self.equiv_area = equiv_area
 
         #mass obtained from hydrostatic balance
         self.mass = np.pi * a*a * draft * rho

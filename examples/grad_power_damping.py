@@ -24,9 +24,12 @@ kq = fcl.imag_disp_rel(omega, depth, Nq)
 
 Nn = 3  #number of progressive modes
 
+damping = 50000
+stiffness = 4000
+
 # isolated body geometry
 body = fcl.Cylinder(radius=a, draft=draft, omega=omega, depth=depth,
-                    gamma=50000, delta=4000)
+                    gamma=damping, delta=stiffness)
 
 
 # define array
@@ -44,8 +47,6 @@ Nbodies = len(x_0)
 for ii in range(Nbodies):
     cylArray0.add_body(x_0[ii], y_0[ii], body)
 
-body.compute_diffraction_properties()
-body.compute_radiation_properties()
 
 cylArray0.solve()
 rao = cylArray0.rao
@@ -59,21 +60,16 @@ print('J_0 = ', J_0)
 
 start_time = perf_counter()
 cylArray0.adjoint_equations()
-gradJ, _ = cylArray0.gradientJ_dampstiff() 
+gradJ, _ = cylArray0.gradientJ_dampstiff()
 print('time for gradient computation through adjoint = ', perf_counter() - start_time)
 
 def compute_fd(c):
     # update array
-    cylArray_h = fcl.Array(beta=beta, depth=depth, k=k, kq=kq, Nn=Nn, Nq=Nq,
-                        omega=omega, water_density=rho, g=g)
-    for ii in range(Nbodies):
-        body = fcl.Cylinder(radius=a, draft=draft, omega=omega, depth=depth, gamma=c[ii], delta=4000)
-        cylArray_h.add_body(x_0[ii], y_0[ii], body)
-        body.compute_diffraction_properties()
-        body.compute_radiation_properties()
+    cylArray0.update_controls(c, stiffness*np.ones(Nbodies))
 
-    cylArray_h.solve()
-    rao = cylArray_h.rao
+
+    cylArray0.solve()
+    rao = cylArray0.rao
 
     P_array_h = 0
     for ii in range(Nbodies):
@@ -88,7 +84,7 @@ fd_gamma = np.zeros(Nbodies)
 
 start_time = perf_counter()
 for kk in range(Nbodies):
-    c = 50000 * np.ones(Nbodies)
+    c = damping * np.ones(Nbodies)
     c[kk] += h
     fd_gamma[kk] = compute_fd(c)
 

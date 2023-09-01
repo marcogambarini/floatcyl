@@ -52,6 +52,7 @@ class Array(object):
         self.bodies = []
         self.x = []
         self.y = []
+        self.W = []
         self.Nbodies = 0
 
         self.denseops = denseops
@@ -83,8 +84,43 @@ class Array(object):
         self.x.append(xbody)
         self.y.append(ybody)
         self.bodies.append(body)
+        try:
+            self.W.append(body.W)
+        except:
+            print('Diffraction and radiation properties of bodies missing.'+
+            '\nDoing the computation now...')
+            body.compute_diffraction_properties()
+            body.compute_radiation_properties()
+            print('... done')
+            self.W.append(body.W)
 
         self.Nbodies = self.Nbodies+1
+
+    def update_controls(self, damping, stiffness):
+        """
+        Updates the values of vector self.W with specified damping and
+        stiffness vectors
+
+        Parameters
+        ----------
+        damping: float array of size Nbodies
+            Damping coefficients
+        stiffness: float array of size Nbodies
+            Stiffness coefficients
+        """
+
+        if (len(damping) is not self.Nbodies
+            or len(stiffness) is not self.Nbodies):
+            raise ValueError('Input vectors should have a length equal to the number of bodies!')
+
+        rho = self.water_density
+        omega = self.omega
+
+        for ii in range(self.Nbodies):
+            self.W[ii] = (self.bodies[ii].equiv_area
+                        - 1j/(rho*self.g) * (self.bodies[ii].mass*omega*omega
+                                - self.bodies[ii].hyd_stiff
+                                + 1j*omega*damping[ii] - stiffness[ii]))
 
     def expose_operators(self):
         """Exposes the system operator, its hermitian and the rhs of
@@ -112,7 +148,7 @@ class Array(object):
             a = self.bodies[ii].radius
             inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
             B = self.bodies[ii].B
-            W = self.bodies[ii].W
+            W = self.W[ii]
             Btilde = self.bodies[ii].Btilde
             Y = self.bodies[ii].Y
             h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
@@ -218,7 +254,7 @@ class Array(object):
                 a = self.bodies[ii].radius
                 inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
                 B = self.bodies[ii].B
-                W = self.bodies[ii].W
+                W = self.W[ii]
                 Btilde = self.bodies[ii].Btilde
                 Y = self.bodies[ii].Y
                 h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
@@ -281,7 +317,7 @@ class Array(object):
                 a = self.bodies[ii].radius
                 inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
                 B = self.bodies[ii].B
-                W = self.bodies[ii].W
+                W = self.W[ii]
                 Btilde = self.bodies[ii].Btilde
                 Y = self.bodies[ii].Y
                 h1[ii*Nnq:(ii+1)*Nnq,:] = -B@inc_wave_coeffs
@@ -1070,7 +1106,7 @@ class Array(object):
                         R = self.bodies[jj].R
                         Btilde = self.bodies[ii].Btilde
                         Y = self.bodies[ii].Y
-                        W = self.bodies[ii].W
+                        W = self.W[ii]
 
                         if kk==ii:
                             ###
@@ -1140,7 +1176,7 @@ class Array(object):
             a = self.bodies[ii].radius
             inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
             B = self.bodies[ii].B
-            W = self.bodies[ii].W
+            W = self.W[ii]
             Btilde = self.bodies[ii].Btilde
             Y = self.bodies[ii].Y
 
@@ -1233,7 +1269,7 @@ class Array(object):
                             R = self.bodies[jj].R
                             Btilde = self.bodies[ii].Btilde
                             Y = self.bodies[ii].Y
-                            W = self.bodies[ii].W
+                            W = self.W[ii]
 
                             if kk==ii:
                                 ###
@@ -1344,7 +1380,7 @@ class Array(object):
                         R = self.bodies[jj].R
                         Btilde = self.bodies[ii].Btilde
                         Y = self.bodies[ii].Y
-                        W = self.bodies[ii].W
+                        W = self.W[ii]
 
                         if kk==ii:
                             temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
@@ -1396,7 +1432,7 @@ class Array(object):
         dM22_dci = np.zeros((Nbodies,Nbodies,Nbodies), dtype=complex)
 
         for ii in range(Nbodies): #loop on bodies
-            W = self.bodies[ii].W
+            W = self.W[ii]
             Btilde = self.bodies[ii].Btilde
             Y = self.bodies[ii].Y
 
@@ -1434,7 +1470,7 @@ class Array(object):
         # The Jacobian is diagonal, only the diagonal is stored
         jac = np.zeros(Nbodies, dtype=complex)
         for ii in range(Nbodies):
-            W = self.bodies[ii].W
+            W = self.W[ii]
             Btilde = self.bodies[ii].Btilde
             Y = self.bodies[ii].Y
             a = self.bodies[ii].radius
@@ -1484,4 +1520,4 @@ class Array(object):
         dL_dci = DP + omega/(rho*g) * np.real(mu.conj().T*jac)
         dL_dsi = np.real(1j/(rho*g)*mu.conj().T*jac)
 
-        return dL_dci, dL_dsi
+        return dL_dci[0, :], dL_dsi[0, :]
