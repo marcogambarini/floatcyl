@@ -59,7 +59,7 @@ print('J_0 = ', J_0)
 
 start_time = perf_counter()
 cylArray0.adjoint_equations()
-gradJ = cylArray0.gradientJ_damp() # separated gradients in x and y
+gradJ, _ = cylArray0.gradientJ_dampstiff() 
 print('time for gradient computation through adjoint = ', perf_counter() - start_time)
 
 def compute_fd(c):
