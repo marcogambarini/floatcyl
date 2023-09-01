@@ -1456,10 +1456,10 @@ class Array(object):
         return jac
 
 
-    def gradientJ_damp(self):
+    def gradientJ_dampstiff(self):
         """
         Computes the gradient of the Lagrangian with respect to the
-        damping coefficients.
+        damping and stiffness coefficients.
         See Eq. (4.35), (4.38) of Gallizioli 2022.
         """
         rao = self.rao
@@ -1476,12 +1476,12 @@ class Array(object):
         rho = self.water_density
 
         DP = np.zeros(Nbodies)
-        dL_dci = np.zeros(Nbodies)
 
         for ii in range(Nbodies):
             DP[ii] = np.real(-0.5 *omega**2 *rao[ii].conj().T@rao[ii])
 
         jac = self.jac_imped()
         dL_dci = DP + omega/(rho*g) * np.real(mu.conj().T*jac)
+        dL_dsi = np.real(1j/(rho*g)*mu.conj().T*jac)
 
-        return dL_dci
+        return dL_dci, dL_dsi
