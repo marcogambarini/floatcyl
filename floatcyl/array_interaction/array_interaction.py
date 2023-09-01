@@ -1401,20 +1401,59 @@ class Array(object):
             Y = self.bodies[ii].Y
 
             for jj in range(Nbodies): # loop on columns
-                for kk in range(Nbodies): # loop on rows
-                    if jj!=kk:
-                        Tij = self.basis_transformation_matrix(jj, kk, shutup=True)
+                if jj!=ii:
+                    Tij = self.Tij[ii, jj]
 
-                        R = self.bodies[jj].R
-                        Btilde = self.bodies[kk].Btilde
-                        Y = self.bodies[kk].Y
-                        W = self.bodies[kk].W
-                        if ii==kk:
-
-                            dM21_dci[ii][kk, jj*Nnq:(jj+1)*Nnq] = -1/(W**2)*omega/(rho*g)*((Tij@Btilde.T@Y).T)
-                            dM22_dci[ii][kk, jj] = -1/(W**2)*(R.T@Tij@Btilde.T@Y)*omega/(rho*g)
+                    R = self.bodies[jj].R
+                    dM21_dci[ii][ii, jj*Nnq:(jj+1)*Nnq] = -1/(W**2)*omega/(rho*g)*((Tij@Btilde.T@Y).T)
+                    dM22_dci[ii][ii, jj] = -1/(W**2)*(R.T@Tij@Btilde.T@Y)*omega/(rho*g)
 
         return dM21_dci, dM22_dci
+
+
+    def jac_imped(self):
+        """
+        Computes the jacobian of the residual of the dynamic equation with respect
+        to the impedance. Used to build the reduced gradient with respect
+        to the control parameters with sparse operations.
+        Added on 01/09/2023. TODO: document.
+        """
+        g = self.g
+        rho = self.water_density
+        k = self.k
+        beta = self.beta
+        Nn = self.Nn
+        Nq = self.Nq
+        Nnq = (2*Nn + 1)*(Nq + 1)
+        omega = self.omega
+        Nbodies = self.Nbodies
+
+        rao = self.rao[:, 0]
+        A = self.scatter_coeffs[:, 0]
+
+        # The Jacobian is diagonal, only the diagonal is stored
+        jac = np.zeros(Nbodies, dtype=complex)
+        for ii in range(Nbodies):
+            W = self.bodies[ii].W
+            Btilde = self.bodies[ii].Btilde
+            Y = self.bodies[ii].Y
+            a = self.bodies[ii].radius
+            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
+
+            for jj in range(Nbodies): # loop on columns
+                if jj!=ii:
+                    Tij = self.Tij[ii, jj]
+                    R = self.bodies[jj].R
+
+                    jac[ii] -= Y.T@Btilde@Tij.T@A[jj*Nnq:(jj+1)*Nnq]
+                    jac[ii] -= (R.T@Tij@Btilde.T@Y)*rao[jj]
+
+            # rhs contribution
+            jac[ii] -= inc_wave_coeffs.T@Btilde.T@Y
+            # common factor
+            jac[ii] *= 1/W**2
+
+        return jac
 
 
     def gradientJ_damp(self):
@@ -1435,30 +1474,14 @@ class Array(object):
         beta = self.beta
         g = self.g
         rho = self.water_density
-        Mder = self.M_derivatives_damp()
-        dM21_dci = Mder[0]
-        dM22_dci = Mder[1]
 
         DP = np.zeros(Nbodies)
-        Dh = np.zeros((Nbodies,Nbodies), dtype=complex)
         dL_dci = np.zeros(Nbodies)
 
-
         for ii in range(Nbodies):
-            a = self.bodies[ii].radius
-            inc_wave_coeffs = self.incident_wave_coeffs(k, beta, a, self.x[ii], self.y[ii], Nn, Nq)
-            W = self.bodies[ii].W
-            Y = self.bodies[ii].Y
             DP[ii] = np.real(-0.5 *omega**2 *rao[ii].conj().T@rao[ii])
 
-            for jj in range(Nbodies):
-                if jj==ii:
-                    Btilde = self.bodies[ii].Btilde
-                    Dh[ii,jj] = 1/(W**2) * inc_wave_coeffs.T @ Btilde.T @ Y *omega / (rho*g)
-
-        for ii in range(Nbodies):
-            dL_dci[ii] = (DP[ii]
-                +np.real(mu.conj().T@(dM21_dci[ii]@A
-                +dM22_dci[ii]@rao)-mu.conj().T@Dh[ii]))
+        jac = self.jac_imped()
+        dL_dci = DP + omega/(rho*g) * np.real(mu.conj().T*jac)
 
         return dL_dci
