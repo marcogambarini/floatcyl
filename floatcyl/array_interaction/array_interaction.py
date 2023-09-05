@@ -12,7 +12,7 @@ class Array(object):
 
     def __init__(self, beta=0., depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
-                g = 9.81, denseops = False):
+                g = 9.81, H=2., denseops = False):
         """Constructor
 
         Parameters
@@ -35,6 +35,8 @@ class Array(object):
             water density (default: 1000)
         g: float
             gravitational field (default: 9.81)
+        H: float
+            monochromatic wave height
         denseops: boolean
             whether to use dense matrices and direct solvers
             (default: False, will use sparse matrices and GMRES)
@@ -48,6 +50,8 @@ class Array(object):
         self.omega = omega
         self.water_density = water_density
         self.g = g
+        self.H = H
+        self.damping = None
 
         self.bodies = []
         self.x = []
@@ -113,6 +117,8 @@ class Array(object):
             or len(stiffness) is not self.Nbodies):
             raise ValueError('Input vectors should have a length equal to the number of bodies!')
 
+
+        self.damping = damping
         rho = self.water_density
         omega = self.omega
 
@@ -597,7 +603,7 @@ class Array(object):
         coeffs = coeffs*premult
 
 
-        return coeffs
+        return self.H/2*coeffs
 
 
     def scattered_basis_fs(self, n, m, k, a, xc, yc, xeval, yeval):
@@ -716,15 +722,12 @@ class Array(object):
         return psi
 
 
-    def compute_power(self, H=2., individual=False, OWC=False):
+    def compute_power(self, individual=False, OWC=False):
         """
-        Computes the power of the array for monochromatic waves of
-        height H.
+        Computes the power of the array.
 
         Parameters
         ----------
-        H: float
-            Monochromatic wave height
         individual: boolean
             Whether to return a list of the powers of the single devices
             (true) or just the total power (false)
@@ -745,11 +748,14 @@ class Array(object):
             b = bodies[ii].torque_coeff
             if OWC:
                 for jj in range(len(b)):
-                    # print('term = ', b[jj] * omega**(2*jj) * (H/2*np.abs(rao[ii]))**(2*jj))
-                    P_individual[ii] += b[jj] * omega**(2*jj) * (H/2*np.abs(rao[ii]))**(2*jj)
+                    P_individual[ii] += b[jj] * omega**(2*jj) * (np.abs(rao[ii]))**(2*jj)
             else:
-                P_individual[ii] = (
-                    0.5 * (H/2)**2 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
+                if self.damping is not None:
+                    P_individual[ii] = (
+                        0.5 * self.damping[ii] * omega**2 * np.abs(rao[ii])**2 )
+                else:
+                    P_individual[ii] = (
+                        0.5 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
 
         if individual:
             return P_individual
@@ -964,7 +970,7 @@ class Array(object):
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self, H=2., OWC=False):
+    def adjoint_equations(self, OWC=False):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -996,7 +1002,7 @@ class Array(object):
                 b = bodies[ii].torque_coeff
                 z = rao[ii]
                 for jj in range(len(b)):
-                    h2[ii] += ((H/2)**(2*jj) * b[jj] * 2*jj * self.omega**(2*jj) *
+                    h2[ii] += (b[jj] * 2*jj * self.omega**(2*jj) *
                                 np.conj(z)**(jj-1) * z**jj)
         else:
             h2 = self.omega**2 * C@rao
@@ -1514,7 +1520,7 @@ class Array(object):
         DP = np.zeros(Nbodies)
 
         for ii in range(Nbodies):
-            DP[ii] = np.real(-0.5 *omega**2 *rao[ii].conj().T@rao[ii])
+            DP[ii] = -0.5*omega**2 * np.abs(rao[ii])**2
 
         jac = self.jac_imped()
         dL_dci = DP + omega/(rho*g) * np.real(mu.conj().T*jac)

@@ -12,7 +12,7 @@ g = 9.81
 a = 1.
 draft = 0.5
 
-h = 0.001
+h = 1
 
 # Dispersion relation
 k = fcl.real_disp_rel(omega, depth)
@@ -36,6 +36,7 @@ body = fcl.Cylinder(radius=a, draft=draft, omega=omega, depth=depth,
 cylArray0 = fcl.Array(beta=beta, depth=depth, k=k, kq=kq, Nn=Nn, Nq=Nq,
                     omega=omega, water_density=rho, g=g, H=H)
 
+var_index = 2
 
 ###################COMPUTE MATRICES
 x_0 = np.array((0., 3., 6., 9., 0., 3., 6., 9., 0., 3., 6., 9.))
@@ -46,7 +47,6 @@ Nbodies = len(x_0)
 for ii in range(Nbodies):
     cylArray0.add_body(x_0[ii], y_0[ii], body)
 
-
 cylArray0.solve()
 J_0 = -cylArray0.compute_power()
 
@@ -54,13 +54,12 @@ print('J_0 = ', J_0)
 
 start_time = perf_counter()
 cylArray0.adjoint_equations()
-gradJ, _ = cylArray0.gradientJ_dampstiff()
+_, gradJ = cylArray0.gradientJ_dampstiff()
 print('time for gradient computation through adjoint = ', perf_counter() - start_time)
 
 def compute_fd(c):
     # update array
-    cylArray0.update_controls(c, stiffness*np.ones(Nbodies))
-
+    cylArray0.update_controls(damping*np.ones(Nbodies), c)
 
     cylArray0.solve()
     J_h = -cylArray0.compute_power()
@@ -73,7 +72,7 @@ fd_gamma = np.zeros(Nbodies)
 
 start_time = perf_counter()
 for kk in range(Nbodies):
-    c = damping * np.ones(Nbodies)
+    c = stiffness * np.ones(Nbodies)
     c[kk] += h
     fd_gamma[kk] = compute_fd(c)
 
