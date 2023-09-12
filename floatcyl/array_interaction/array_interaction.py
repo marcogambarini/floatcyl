@@ -970,7 +970,7 @@ class Array(object):
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self, OWC=False):
+    def adjoint_equations(self, OWC=False, mu=0, zmax=None):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -980,6 +980,12 @@ class Array(object):
         OWC: boolean
             Whether to use the formulation of the RHS for oscillating water
             columns with immersed turbine (default: False)
+        mu: float
+            Penalty parameter for constraint enforcement (default: 0,
+            no additional constraints)
+        zmax: float
+            Maximum stroke amplitude for enforcement through the penalty
+            method (only effective if mu>0)
         """
         Nbodies = self.Nbodies
         Nn = self.Nn
@@ -1006,6 +1012,12 @@ class Array(object):
                                 np.conj(z)**(jj-1) * z**jj)
         else:
             h2 = self.omega**2 * C@rao
+
+        # constraint enforcement via penalty method
+        if mu>0:
+            h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
+            h2 += h2_penalty
+            print('penalty term = ', np.linalg.norm(h2_penalty)) 
 
 
         mulan = np.block([[h1],[h2]])
