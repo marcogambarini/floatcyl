@@ -994,12 +994,16 @@ class Array(object):
 
         rao = self.rao
 
+        print('rao = ', rao)
 
         bodies = self.bodies
 
-        C = np.zeros((Nbodies,Nbodies))
-        for ii in range(Nbodies):
-            C[ii,ii] = bodies[ii].gamma
+        if self.damping is None:
+            C = np.zeros((Nbodies,Nbodies))
+            for ii in range(Nbodies):
+                C[ii,ii] = bodies[ii].gamma
+        else:
+            C = np.diag(self.damping)
 
         h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
         if OWC:
@@ -1017,8 +1021,9 @@ class Array(object):
         if mu>0:
             h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
             h2 += h2_penalty
-            print('penalty term = ', np.linalg.norm(h2_penalty)) 
+            print('penalty term = ', np.linalg.norm(h2_penalty))
 
+        print('h2 = ', h2)
 
         mulan = np.block([[h1],[h2]])
 
