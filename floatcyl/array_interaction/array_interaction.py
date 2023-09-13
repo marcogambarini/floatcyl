@@ -994,8 +994,6 @@ class Array(object):
 
         rao = self.rao
 
-        print('rao = ', rao)
-
         bodies = self.bodies
 
         if self.damping is None:
@@ -1022,8 +1020,6 @@ class Array(object):
             h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
             h2 += h2_penalty
             print('penalty term = ', np.linalg.norm(h2_penalty))
-
-        print('h2 = ', h2)
 
         mulan = np.block([[h1],[h2]])
 
