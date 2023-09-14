@@ -970,7 +970,7 @@ class Array(object):
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self, OWC=False, mu=0, zmax=None):
+    def adjoint_equations(self, OWC=False, mu=0, zmax=None, type=2):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -986,6 +986,9 @@ class Array(object):
         zmax: float
             Maximum stroke amplitude for enforcement through the penalty
             method (only effective if mu>0)
+        type: integer
+            Type of penalty method: 1 for nonsmooth, 2 for quadratic
+            (default = 2)
         """
         Nbodies = self.Nbodies
         Nn = self.Nn
@@ -1017,7 +1020,11 @@ class Array(object):
 
         # constraint enforcement via penalty method
         if mu>0:
-            h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
+            if type==2:
+                h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
+            elif type==1:
+                h2_penalty = -2*mu*rao * (np.abs(rao)**2 - zmax**2 > 0)
+
             h2 += h2_penalty
             print('penalty term = ', np.linalg.norm(h2_penalty))
 
