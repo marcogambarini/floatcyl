@@ -970,7 +970,7 @@ class Array(object):
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self, OWC=False, mu=0, zmax=None, type=2):
+    def adjoint_equations(self, OWC=False, constr=None, mu=0, zmax=None, type=2):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -980,6 +980,9 @@ class Array(object):
         OWC: boolean
             Whether to use the formulation of the RHS for oscillating water
             columns with immersed turbine (default: False)
+        constr: string
+            Type of constraint to be imposed. Options: 'stroke', 'slamming'.
+            If mu>0, defaults to stroke. Otherwise, None.
         mu: float
             Penalty parameter for constraint enforcement (default: 0,
             no additional constraints)
@@ -996,6 +999,9 @@ class Array(object):
         Nnq = (2*Nn + 1)*(Nq + 1)
 
         rao = self.rao
+        H = self.H
+        k = self.k
+        beta = self.beta
 
         bodies = self.bodies
 
@@ -1019,13 +1025,28 @@ class Array(object):
             h2 = self.omega**2 * C@rao
 
         # constraint enforcement via penalty method
-        if mu>0:
-            if type==2:
-                h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
-            elif type==1:
-                h2_penalty = -2*mu*rao * (np.abs(rao)**2 - zmax**2 > 0)
+        if mu>0 and constr is not None:
+            if constr=='stroke':
+                if type==2:
+                    h2_penalty = -2*mu*rao * np.maximum(0, np.abs(rao)**2 - zmax**2)
+                elif type==1:
+                    h2_penalty = -2*mu*rao * (np.abs(rao)**2 - zmax**2 > 0)
+            elif constr=='slamming':
+                draftvec = np.zeros(Nbodies)
+                for kk in range(Nbodies):
+                    draftvec[kk] = bodies[kk].draft
+                etavec = 1j * H/2 * np.exp(1j*k*(
+                                    np.cos(beta) * self.x
+                                    + np.sin(beta) * self.y
+                                ))
+                slam = rao[:, 0] - etavec
+                print('slamming amplitudes = ', np.abs(slam))
+                if type==2:
+                    h2_penalty = -2*mu*slam * np.maximum(0, np.abs(slam)**2 - draftvec**2)
+                elif type==1:
+                    h2_penalty = -2*mu*slam * (np.abs(slam)**2 - draftvec**2 > 0)
 
-            h2 += h2_penalty
+            h2[:, 0] += h2_penalty
             print('penalty term = ', np.linalg.norm(h2_penalty))
 
         mulan = np.block([[h1],[h2]])
