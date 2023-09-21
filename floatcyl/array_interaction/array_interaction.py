@@ -970,7 +970,8 @@ class Array(object):
         return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
-    def adjoint_equations(self, OWC=False, constr=None, mu=0, zmax=None, type=2):
+    def adjoint_equations(self, OWC=False, constr=None, mu=0, zmax=None, type=2,
+                            returnMH=False):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -992,6 +993,9 @@ class Array(object):
         type: integer
             Type of penalty method: 1 for nonsmooth, 2 for quadratic
             (default = 2)
+        returnMH: boolean
+            Whether to return the matrix (if denseops==True) or the
+            linear operator (if denseops==False) MH. (default: False)
         """
         Nbodies = self.Nbodies
         Nn = self.Nn
@@ -1113,6 +1117,9 @@ class Array(object):
             self.landa[:, 0] = z[:Nnq*Nbodies]
             self.mu = np.zeros((Nbodies, 1), dtype=complex)
             self.mu[:, 0] = z[Nnq*Nbodies:]
+
+        if returnMH:
+            return MH
 
     #@profile
     def M_derivatives(self):
@@ -1539,11 +1546,17 @@ class Array(object):
         return jac
 
 
-    def gradientJ_dampstiff(self):
+    def gradientJ_dampstiff(self, returnJimp=False):
         """
         Computes the gradient of the Lagrangian with respect to the
         damping and stiffness coefficients.
         See Eq. (4.35), (4.38) of Gallizioli 2022.
+
+        Parameters
+        ----------
+        returnJimp: boolean
+            Whether to return the intermediate result of jac_imped
+            (default: False)
         """
         rao = self.rao
         A = self.scatter_coeffs
@@ -1567,4 +1580,7 @@ class Array(object):
         dL_dci = DP + omega/(rho*g) * np.real(mu.conj().T*jac)
         dL_dsi = np.real(1j/(rho*g)*mu.conj().T*jac)
 
-        return dL_dci[0, :], dL_dsi[0, :]
+        if returnJimp:
+            return dL_dci[0, :], dL_dsi[0, :], jac
+        else:
+            return dL_dci[0, :], dL_dsi[0, :]
