@@ -971,7 +971,7 @@ class Array(object):
 
 
     def adjoint_equations(self, OWC=False, constr=None, mu=0, zmax=None, type=2,
-                            returnMH=False):
+                            returnMH=False, rhs=None):
         """
         Solves the adjoint equations.
         See (4.14) of Gallizioli 2022.
@@ -996,6 +996,9 @@ class Array(object):
         returnMH: boolean
             Whether to return the matrix (if denseops==True) or the
             linear operator (if denseops==False) MH. (default: False)
+        rhs: array
+            If not None, it is used as-is as the rhs of the equation
+            (default: None)
         """
         Nbodies = self.Nbodies
         Nn = self.Nn
@@ -1071,7 +1074,10 @@ class Array(object):
             MH = np.block([[M11H, M21H],[M12H,M22H]])
 
             # Solve the system
-            z = np.linalg.solve(MH, mulan)
+            if rhs is not None:
+                z = np.linalg.solve(MH, rhs)
+            else:
+                z = np.linalg.solve(MH, mulan)
             self.landa = z[:Nnq*Nbodies]
             self.mu = z[Nnq*Nbodies:]
         else:
@@ -1112,7 +1118,10 @@ class Array(object):
             MH = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=MHv)
 
             # Solve the system
-            z, info = gmres(MH, mulan)
+            if rhs is not None:
+                z, info = gmres(MH, rhs)
+            else:
+                z, info = gmres(MH, mulan)
             self.landa = np.zeros((Nnq*Nbodies,1), dtype=complex)
             self.landa[:, 0] = z[:Nnq*Nbodies]
             self.mu = np.zeros((Nbodies, 1), dtype=complex)
