@@ -128,9 +128,20 @@ class Array(object):
                                 - self.bodies[ii].hyd_stiff
                                 + 1j*omega*damping[ii] - stiffness[ii]))
 
-    def expose_operators(self):
+    def expose_operators(self, returnblocks=False):
         """Exposes the system operator, its hermitian and the rhs of
         the system. Sparse matrices + linear operators are used.
+
+        Parameters
+        ----------
+        returnblocks: boolean
+            Whether to return also the single blocks of matrix M
+            (default: False)
+
+        Returns
+        -------
+            (M, MH, hh) and optionally the list of blocks of M,
+            ordered (M11, M12, M21, M22)
         """
 
         Nn = self.Nn
@@ -138,6 +149,9 @@ class Array(object):
         Nnq = (2*Nn + 1)*(Nq + 1)
 
         Nbodies = self.Nbodies
+
+        if self.denseops:
+            M11 = -np.eye(Nnq*Nbodies, dtype=complex)
 
         M12 = np.zeros((Nnq*Nbodies, Nbodies), dtype=complex)
         M21 = np.zeros((Nbodies, Nnq*Nbodies), dtype=complex)
@@ -167,6 +181,10 @@ class Array(object):
 
                     R = self.bodies[jj].R
 
+                    if self.denseops:
+                        #block matrix filling of matrix M11
+                        M11[ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = (B @ Tij[ii, jj].T).toarray()
+
                     #block column-vector filling of matrix M12
                     M12[ii*Nnq:(ii+1)*Nnq, jj] = (B @ (Tij[ii, jj].T @ R))[:,0]
 
@@ -177,59 +195,92 @@ class Array(object):
                     M22[ii, jj] = 1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)
 
         # Save blocks for use in optimization routines
-
-        def M11v(v):
-            mv = np.zeros(len(v), dtype=complex)
-            for ii in range(Nbodies):
-                for jj in range(Nbodies):
-                    if not (ii==jj):
-                        mv[ii*Nnq:(ii+1)*Nnq] += (
-                            self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
-
-            # identity contribution in return
-            return -v + mv
-
-        M11 = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11v)
-
-
-        # Build matrix M and vector h from blocks
-        def Mv(v):
-            mv = np.zeros(len(v), dtype=complex)
-            mv[:Nnq*Nbodies] += M11@v[:Nnq*Nbodies]
-            mv[:Nnq*Nbodies] += M12@v[Nnq*Nbodies:]
-            mv[Nnq*Nbodies:] += M21@v[:Nnq*Nbodies]
-            mv[Nnq*Nbodies:] += M22@v[Nnq*Nbodies:]
-
-            return mv
-
-        M = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=Mv)
         hh = np.block([[h1],[h2]])
 
-        def M11Hv(v):
-            mv = np.zeros(len(v), dtype=complex)
-            for ii in range(Nbodies):
-                for jj in range(Nbodies):
-                    if not (ii==jj):
-                        mv[jj*Nnq:(jj+1)*Nnq] += (
-                            np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+        self.Tij = Tij
 
-            # identity contribution in return
-            return -v + mv
+        if self.denseops:
+            M = np.block([[M11, M12], [M21, M22]])
 
-        M11H = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11Hv)
+            # Save blocks for use in optimization routines
+            self.M11 = M11
+            self.M12 = M12
+            self.M21 = M21
+            self.M22 = M22
 
-        def MHv(v):
-            mv = np.zeros(len(v), dtype=complex)
-            mv[:Nnq*Nbodies] += M11H@v[:Nnq*Nbodies]
-            mv[:Nnq*Nbodies] += np.conj(M21.T)@v[Nnq*Nbodies:]
-            mv[Nnq*Nbodies:] += np.conj(M12.T)@v[:Nnq*Nbodies]
-            mv[Nnq*Nbodies:] += np.conj(M22.T)@v[Nnq*Nbodies:]
+            self.h1 = h1
+            self.h2 = h2
 
-            return mv
 
-        MH = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=MHv)
+            if returnblocks:
+                return M, hh[:,0], (M11, M12, M21, M22)
+            else:
+                return M, hh[:,0]
+        else:
+            def M11v(v):
+                mv = np.zeros(len(v), dtype=complex)
+                for ii in range(Nbodies):
+                    for jj in range(Nbodies):
+                        if not (ii==jj):
+                            mv[ii*Nnq:(ii+1)*Nnq] += (
+                                self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
 
-        return M, MH, hh[:,0]
+                # identity contribution in return
+                return -v + mv
+
+            M11 = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11v)
+
+
+            # Build matrix M and vector h from blocks
+            def Mv(v):
+                mv = np.zeros(len(v), dtype=complex)
+                mv[:Nnq*Nbodies] += M11@v[:Nnq*Nbodies]
+                mv[:Nnq*Nbodies] += M12@v[Nnq*Nbodies:]
+                mv[Nnq*Nbodies:] += M21@v[:Nnq*Nbodies]
+                mv[Nnq*Nbodies:] += M22@v[Nnq*Nbodies:]
+
+                return mv
+
+            M = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=Mv)
+
+            def M11Hv(v):
+                mv = np.zeros(len(v), dtype=complex)
+                for ii in range(Nbodies):
+                    for jj in range(Nbodies):
+                        if not (ii==jj):
+                            mv[jj*Nnq:(jj+1)*Nnq] += (
+                                np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+
+                # identity contribution in return
+                return -v + mv
+
+            M11H = LinearOperator((Nnq*Nbodies, Nnq*Nbodies), matvec=M11Hv)
+
+            def MHv(v):
+                mv = np.zeros(len(v), dtype=complex)
+                mv[:Nnq*Nbodies] += M11H@v[:Nnq*Nbodies]
+                mv[:Nnq*Nbodies] += np.conj(M21.T)@v[Nnq*Nbodies:]
+                mv[Nnq*Nbodies:] += np.conj(M12.T)@v[:Nnq*Nbodies]
+                mv[Nnq*Nbodies:] += np.conj(M22.T)@v[Nnq*Nbodies:]
+
+                return mv
+
+            MH = LinearOperator(((Nnq+1)*Nbodies, (Nnq+1)*Nbodies), matvec=MHv)
+
+            # Save blocks for use in optimization routines
+            self.M11 = M11
+            self.M12 = M12
+            self.M21 = M21
+            self.M22 = M22
+
+            self.h1 = h1
+            self.h2 = h2
+
+            if returnblocks:
+                return M, MH, hh[:,0], (M11, M12, M21, M22)
+            else:
+                return M, MH, hh[:,0]
+
 
 
     def solve(self):
