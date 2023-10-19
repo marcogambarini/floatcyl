@@ -663,14 +663,16 @@ class Array(object):
 
         # precompute arrays
         AA, NN = np.meshgrid(alpha, np.arange(-2*Nn, 2*Nn+1))
-        exp_mat = np.exp(1j*AA*NN).T
-        LL, NN = np.meshgrid(L, np.arange(-2*Nn, 2*Nn+1))
-        hank_diff_mat = hankel1(NN, k*LL).T
+        self.exp_mat = np.exp(1j*AA*NN).T
+        # For this function we could stop at 2*Nn+1, but for T_derivatives
+        # one more term is needed
+        LL, NN = np.meshgrid(L, np.arange(-2*Nn, 2*Nn+2))
+        self.hank_diff_mat = hankel1(NN, k*LL).T
         LL, MM, NN = np.meshgrid(L,
                                  np.arange(Nm),
-                                 np.arange(-2*Nn, 2*Nn+1),
+                                 np.arange(-2*Nn, 2*Nn+2),
                                 )
-        kn_diff_arr = kn(NN, km[MM][:,:,:,0]*LL).transpose(1, 0, 2)
+        self.kn_diff_arr = kn(NN, km[MM][:,:,:,0]*LL).transpose(1, 0, 2)
 
         for ii in range(Nb):
             for jj in range(Nb):
@@ -681,30 +683,32 @@ class Array(object):
                         index = jj*Nb - (jj*(jj+1))//2 + ii - (jj+1)
                     jv_vec = self.bodies[jj].jv_vec
                     hank_vec = self.bodies[ii].hank_vec
-                    exp_vec = exp_mat[index, :]
                     if ii>jj:
-                        exp_vec *= (-1)**np.arange(4*Nn+1)
-                    hank_diff_vec = hank_diff_mat[index, :]*exp_vec
+                        # corrects for the fact that alpha_ij = alpha_ji + pi
+                        exp_vec = self.exp_mat[index, :]*(-1)**np.arange(4*Nn+1)
+                    else:
+                        exp_vec = self.exp_mat[index, :]
+                    hank_diff_vec = self.hank_diff_mat[index, :-1]*exp_vec
                     iv_mat = self.bodies[jj].iv_mat
                     kn_mat = self.bodies[ii].kn_mat
-                    kn_diff_mat = kn_diff_arr[index, :, :].T
+                    kn_diff_mat = self.kn_diff_arr[index, :, :].T
 
                     # print('kn_diff_mat = ', kn_diff_mat)
                     #
-                    ai = self.bodies[ii].radius
-                    aj = self.bodies[jj].radius
-                    xi = self.x[ii]
-                    yi = self.y[ii]
-                    xj = self.x[jj]
-                    yj = self.y[jj]
-
-                    L_ij = np.sqrt((xi-xj)*(xi-xj) + (yi-yj)*(yi-yj))
-                    alpha_ij = np.arctan2((yj-yi),(xj-xi))
-                    exp_vec_ex = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
-                    hank_diff_vec_ex = (hankel1(np.arange(-2*Nn, 2*Nn+1), k*L_ij) *
-                                    exp_vec)
-                    M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+1))
-                    kn_diff_mat_ex = kn(LL,km[M][:,:,0]*L_ij)
+                    # ai = self.bodies[ii].radius
+                    # aj = self.bodies[jj].radius
+                    # xi = self.x[ii]
+                    # yi = self.y[ii]
+                    # xj = self.x[jj]
+                    # yj = self.y[jj]
+                    #
+                    # L_ij = np.sqrt((xi-xj)*(xi-xj) + (yi-yj)*(yi-yj))
+                    # alpha_ij = np.arctan2((yj-yi),(xj-xi))
+                    # exp_vec_ex = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
+                    # hank_diff_vec_ex = (hankel1(np.arange(-2*Nn, 2*Nn+1), k*L_ij) *
+                    #                 exp_vec)
+                    # M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+1))
+                    # kn_diff_mat_ex = kn(LL,km[M][:,:,0]*L_ij)
 
                     # print('exp_vec = ', exp_vec)
                     # print('exp_vec_ex = ', exp_vec_ex)
@@ -1002,11 +1006,17 @@ class Array(object):
         return L, alpha, dL_dxi, dL_dxj, dL_dyi, dL_dyj, dalpha_dxi, dalpha_dxj, dalpha_dyi, dalpha_dyj
 
 
-    def T_derivatives(self):
+    def T_derivatives(self, symm=True):
         """
         Computes the derivatives of the basis transformation matrices
         with respect to the coordinates of bodies.
         See Eq. (4.20) in Gallizioli 2022
+
+        Parameters
+        ----------
+        symm: boolean
+            Whether or not to leverage symmetries to save computations
+            (default: True)
         """
         Nn = self.Nn
         Nm = self.Nq
@@ -1028,41 +1038,54 @@ class Array(object):
         # dT_dyj = np.zeros((Nb,Nb,(2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
 
         dT_dxi = {}
-        dT_dxj = {}
-
         dT_dyi = {}
-        dT_dyj = {}
+
+        if not symm:
+            dT_dxj = {}
+            dT_dyj = {}
 
         for ii in range(Nb):
             for jj in range(Nb):
                 if ii!=jj :
 
-                    ai = self.bodies[ii].radius
-                    aj = self.bodies[jj].radius
+                    #ai = self.bodies[ii].radius
+                    #aj = self.bodies[jj].radius
 
-
-                    #jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
+                    if jj>ii:
+                        index = ii*Nb - (ii*(ii+1))//2 + jj - (ii+1)
+                    else:
+                        index = jj*Nb - (jj*(jj+1))//2 + ii - (jj+1)
                     jv_vec = self.bodies[jj].jv_vec
-                    #hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
                     hank_vec = self.bodies[ii].hank_vec
-                    hank_diff_vec = hankel1(np.arange(-2*Nn, 2*Nn+2), k*dist[ii,jj])
-                    #M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
-                    #iv_mat = iv(L,km[M][:,:,0]*aj)
+                    exp_vec = self.exp_mat[index, :]
+                    if ii>jj:
+                        exp_vec *= (-1)**np.arange(4*Nn+1)
+                    hank_diff_vec = self.hank_diff_mat[index, :]
                     iv_mat = self.bodies[jj].iv_mat
-                    #kn_mat = kn(L,km[M][:,:,0]*ai)
                     kn_mat = self.bodies[ii].kn_mat
-                    M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+2))
-                    kn_diff_mat = kn(LL,km[M][:,:,0]*dist[ii,jj])
-                    exp_vec = np.exp(1j*alpha[ii,jj]*np.arange(-2*Nn, 2*Nn+1))
+                    kn_diff_mat = self.kn_diff_arr[index, :, :].T
+
+                    # #jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
+                    # jv_vec = self.bodies[jj].jv_vec
+                    # #hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
+                    # hank_vec = self.bodies[ii].hank_vec
+                    # hank_diff_vec = hankel1(np.arange(-2*Nn, 2*Nn+2), k*dist[ii,jj])
+                    # #M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
+                    # #iv_mat = iv(L,km[M][:,:,0]*aj)
+                    # iv_mat = self.bodies[jj].iv_mat
+                    # #kn_mat = kn(L,km[M][:,:,0]*ai)
+                    # kn_mat = self.bodies[ii].kn_mat
+                    # M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+2))
+                    # kn_diff_mat = kn(LL,km[M][:,:,0]*dist[ii,jj])
+                    # exp_vec_ex = np.exp(1j*alpha[ii,jj]*np.arange(-2*Nn, 2*Nn+1))
 
 
                     dT_dxi_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
-
-                    dT_dxj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
-
                     dT_dyi_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
 
-                    dT_dyj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+                    if not symm:
+                        dT_dxj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+                        dT_dyj_data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
 
                     row_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
                     col_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
@@ -1076,10 +1099,6 @@ class Array(object):
                             dT_dL = ((n-l)*hank_diff_vec[n-l+2*Nn]/(k*dist[ii,jj])-hank_diff_vec[n-l+1+2*Nn])*exp_vec[n-l+2*Nn]*k
                             dT_da = hank_diff_vec[n-l+2*Nn]*exp_vec[n-l+2*Nn]*1j*(n-l)
 
-                            # dT_dxi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                            #             jv_h1 * (dT_dL * Lder[2][ii,jj]
-                            #             + dT_da * Lder[6][ii,jj])
-                            #             )
                             dT_dxi_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[2][ii,jj]
                                         + dT_da * Lder[6][ii,jj])
@@ -1087,32 +1106,21 @@ class Array(object):
                             row_ind[counter] = vector_index(n,m,Nn,Nm)
                             col_ind[counter] = vector_index(l,m,Nn,Nm)
 
-                            # dT_dyi[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                            #             jv_h1 * (dT_dL * Lder[4][ii,jj]
-                            #             + dT_da * Lder[8][ii,jj])
-                            #             )
+
                             dT_dyi_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[4][ii,jj]
                                         + dT_da * Lder[8][ii,jj])
                                         )
 
-                            # dT_dxj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                            #             jv_h1 * (dT_dL * Lder[3][ii,jj]
-                            #             + dT_da * Lder[7][ii,jj])
-                            #             )
-                            dT_dxj_data[counter] = (
+                            if not symm:
+                                dT_dxj_data[counter] = (
                                         jv_h1 * (dT_dL * Lder[3][ii,jj]
                                         + dT_da * Lder[7][ii,jj])
                                         )
-
-                            # dT_dyj[ii,jj][vector_index(n,m,Nn,Nm), vector_index(l,m,Nn,Nm)] = (
-                            #             jv_h1 * (dT_dL * Lder[5][ii,jj]
-                            #             + dT_da * Lder[9][ii,jj])
-                            #             )
-                            dT_dyj_data[counter] = (
-                                        jv_h1 * (dT_dL * Lder[5][ii,jj]
-                                        + dT_da * Lder[9][ii,jj])
-                                        )
+                                dT_dyj_data[counter] = (
+                                            jv_h1 * (dT_dL * Lder[5][ii,jj]
+                                            + dT_da * Lder[9][ii,jj])
+                                            )
 
                             # precomputations so that loops are vectorized by scipy
                             #iv_kn_vec = iv(l,km*a)/kn(n,km*a)
@@ -1127,10 +1135,11 @@ class Array(object):
                                 + dT_da_vec * Lder[6][ii,jj]))
                             dT_dyi_vec = (iv_kn_vec * (dT_dL_vec * Lder[4][ii,jj]
                                 + dT_da_vec * Lder[8][ii,jj]))
-                            dT_dxj_vec = (iv_kn_vec * (dT_dL_vec * Lder[3][ii,jj]
-                                + dT_da_vec * Lder[7][ii,jj]))
-                            dT_dyj_vec = (iv_kn_vec * (dT_dL_vec * Lder[5][ii,jj]
-                                + dT_da_vec * Lder[9][ii,jj]))
+                            if not symm:
+                                dT_dxj_vec = (iv_kn_vec * (dT_dL_vec * Lder[3][ii,jj]
+                                    + dT_da_vec * Lder[7][ii,jj]))
+                                dT_dyj_vec = (iv_kn_vec * (dT_dL_vec * Lder[5][ii,jj]
+                                    + dT_da_vec * Lder[9][ii,jj]))
 
                             counter +=1
 
@@ -1142,18 +1151,23 @@ class Array(object):
 
                             dT_dxi_data[counter:counter+Nm] = dT_dxi_vec[:,0]
                             dT_dyi_data[counter:counter+Nm] = dT_dyi_vec[:,0]
-                            dT_dxj_data[counter:counter+Nm] = dT_dxj_vec[:,0]
-                            dT_dyj_data[counter:counter+Nm] = dT_dyj_vec[:,0]
+                            if not symm:
+                                dT_dxj_data[counter:counter+Nm] = dT_dxj_vec[:,0]
+                                dT_dyj_data[counter:counter+Nm] = dT_dyj_vec[:,0]
 
                             counter += Nm
 
 
                     dT_dxi[ii, jj] = coo_matrix((dT_dxi_data, (row_ind, col_ind)))
-                    dT_dxj[ii, jj] = coo_matrix((dT_dxj_data, (row_ind, col_ind)))
                     dT_dyi[ii, jj] = coo_matrix((dT_dyi_data, (row_ind, col_ind)))
-                    dT_dyj[ii, jj] = coo_matrix((dT_dyj_data, (row_ind, col_ind)))
+                    if not symm:
+                        dT_dxj[ii, jj] = coo_matrix((dT_dxj_data, (row_ind, col_ind)))
+                        dT_dyj[ii, jj] = coo_matrix((dT_dyj_data, (row_ind, col_ind)))
 
-        return dT_dxi, dT_dxj, dT_dyi, dT_dyj
+        if symm:
+            return dT_dxi, dT_dyi
+        else:
+            return dT_dxi, dT_dxj, dT_dyi, dT_dyj
 
 
     def adjoint_equations(self, OWC=False, constr=None, mu=0, zmax=None, type=2,
@@ -1340,7 +1354,7 @@ class Array(object):
         dM21_dyi = np.zeros((Nbodies,Nbodies, Nnq*Nbodies), dtype=complex)
         dM22_dyi = np.zeros((Nbodies,Nbodies,Nbodies), dtype=complex)
 
-        dT = self.T_derivatives()
+        dT = self.T_derivatives(symm=False)
         dT_dxi = dT[0]
         dT_dxj = dT[1]
         dT_dyi = dT[2]
@@ -1464,7 +1478,7 @@ class Array(object):
         dL_dyi = np.zeros(Nbodies)
 
         if self.denseops:
-            dM = self.M_derivatives()
+            dM = self.M_derivatives(symm=False)
 
             dM11_dxi = dM[0]
             dM12_dxi = dM[1]
@@ -1497,9 +1511,9 @@ class Array(object):
 
             dT = self.T_derivatives()
             dT_dxi = dT[0]
-            dT_dxj = dT[1]
-            dT_dyi = dT[2]
-            dT_dyj = dT[3]
+            #dT_dxj = dT[1]
+            dT_dyi = dT[1]
+            #dT_dyj = dT[3]
 
             gradJx = np.zeros(Nbodies)
             gradJy = np.zeros(Nbodies)
@@ -1523,29 +1537,37 @@ class Array(object):
                             if kk==ii:
                                 ###
                                 #dM11_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dxj[jj,kk].T
-                                temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                                #temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                                temp_hyd_x[ii*Nnq:(ii+1)*Nnq] -= B @ (dT_dxi[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
 
                                 #dM12_dxi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dxj[jj,kk].T @ R)[:,0]
-                                temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxj[jj,kk].T @ R))[:,0] * rao[jj]
+                                #temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxj[jj,kk].T @ R))[:,0] * rao[jj]
+                                temp_hyd_x[ii*Nnq:(ii+1)*Nnq] -= (B @ (dT_dxi[jj,kk].T @ R))[:,0] * rao[jj]
 
                                 #dM21_dxi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dxj[jj,kk] @ Btilde.T @ Y).T)[0,:]
-                                temp_dyn_x[ii] += (1/W * (dT_dxj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                                #temp_dyn_x[ii] += (1/W * (dT_dxj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                                temp_dyn_x[ii] -= (1/W * (dT_dxi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
 
                                 #dM22_dxi[kk][ii, jj] = 1/W * R.T @ dT_dxj[jj,kk] @ Btilde.T @ Y
-                                temp_dyn_x[ii] += 1/W * (R.T @ dT_dxj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                                #temp_dyn_x[ii] += 1/W * (R.T @ dT_dxj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                                temp_dyn_x[ii] -= 1/W * (R.T @ dT_dxi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
 
                                 ###
                                 #dM11_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj*Nnq:(jj+1)*Nnq] = B @ dT_dyj[jj,kk].T
-                                temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                                #temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                                temp_hyd_y[ii*Nnq:(ii+1)*Nnq] -= B @ (dT_dyi[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
 
                                 #dM12_dyi[kk][ii*Nnq:(ii+1)*Nnq, jj] = (B @ dT_dyj[jj,kk].T @ R)[:,0]
-                                temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyj[jj,kk].T @ R))[:,0] * rao[jj]
+                                #temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyj[jj,kk].T @ R))[:,0] * rao[jj]
+                                temp_hyd_y[ii*Nnq:(ii+1)*Nnq] -= (B @ (dT_dyi[jj,kk].T @ R))[:,0] * rao[jj]
 
                                 #dM21_dyi[kk][ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (dT_dyj[jj,kk] @ Btilde.T @ Y).T)[0,:]
-                                temp_dyn_y[ii] += (1/W * (dT_dyj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                                #temp_dyn_y[ii] += (1/W * (dT_dyj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                                temp_dyn_y[ii] -= (1/W * (dT_dyi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
 
                                 #dM22_dyi[kk][ii, jj] = 1/W * R.T @ dT_dyj[jj,kk] @ Btilde.T @ Y
-                                temp_dyn_y[ii] += 1/W * (R.T @ dT_dyj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                                #temp_dyn_y[ii] += 1/W * (R.T @ dT_dyj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                                temp_dyn_y[ii] -= 1/W * (R.T @ dT_dyi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
 
 
                             if kk==jj:
@@ -1609,9 +1631,9 @@ class Array(object):
 
         dT = self.T_derivatives()
         dT_dxi = dT[0]
-        dT_dxj = dT[1]
-        dT_dyi = dT[2]
-        dT_dyj = dT[3]
+        #dT_dxj = dT[1]
+        dT_dyi = dT[1]
+        #dT_dyj = dT[3]
 
         jac = np.zeros((len(A)+len(rao), 2*Nbodies), dtype=complex)
 
@@ -1632,15 +1654,23 @@ class Array(object):
                         W = self.W[ii]
 
                         if kk==ii:
-                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
-                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxj[jj,kk].T @ R))[:,0] * rao[jj]
-                            temp_dyn_x[ii] += (1/W * (dT_dxj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
-                            temp_dyn_x[ii] += 1/W * (R.T @ dT_dxj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                            # temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            # temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxj[jj,kk].T @ R))[:,0] * rao[jj]
+                            # temp_dyn_x[ii] += (1/W * (dT_dxj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            # temp_dyn_x[ii] += 1/W * (R.T @ dT_dxj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] -= B @ (dT_dxi[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            temp_hyd_x[ii*Nnq:(ii+1)*Nnq] -= (B @ (dT_dxi[jj,kk].T @ R))[:,0] * rao[jj]
+                            temp_dyn_x[ii] -= (1/W * (dT_dxi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            temp_dyn_x[ii] -= 1/W * (R.T @ dT_dxi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
 
-                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
-                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyj[jj,kk].T @ R))[:,0] * rao[jj]
-                            temp_dyn_y[ii] += (1/W * (dT_dyj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
-                            temp_dyn_y[ii] += 1/W * (R.T @ dT_dyj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                            # temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyj[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            # temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyj[jj,kk].T @ R))[:,0] * rao[jj]
+                            # temp_dyn_y[ii] += (1/W * (dT_dyj[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            # temp_dyn_y[ii] += 1/W * (R.T @ dT_dyj[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] -= B @ (dT_dyi[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
+                            temp_hyd_y[ii*Nnq:(ii+1)*Nnq] -= (B @ (dT_dyi[jj,kk].T @ R))[:,0] * rao[jj]
+                            temp_dyn_y[ii] -= (1/W * (dT_dyi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
+                            temp_dyn_y[ii] -= 1/W * (R.T @ dT_dyi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
 
 
                         if kk==jj:
