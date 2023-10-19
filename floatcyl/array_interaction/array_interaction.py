@@ -76,14 +76,15 @@ class Array(object):
         body: body object
         """
         body.depth = self.depth
-        body.k = self.k
-        body.kq = self.kq
-        body.Nn = self.Nn
-        body.Nq = self.Nq
+        k = body.k = self.k
+        kq = body.kq = self.kq
+        Nn = body.Nn = self.Nn
+        Nq = body.Nq = self.Nq
         body.omega = self.omega
         body.water_density = self.water_density
         body.g = self.g
         body.clearance = self.depth-body.draft
+        a = body.radius
 
         self.x.append(xbody)
         self.y.append(ybody)
@@ -97,6 +98,16 @@ class Array(object):
             body.compute_radiation_properties()
             print('... done')
             self.W.append(body.W)
+        # Precompute all quantities relative to a single body that
+        # appear in the basis transformation matrix
+        if not hasattr(body, 'jv_vec'):
+            print('Computing the isolated basis transformation data for the added body...')
+            body.jv_vec = jv(np.arange(-Nn, Nn+1), k*a)
+            body.hank_vec = hankel1(np.arange(-Nn, Nn+1), k*a)
+            M, L = np.meshgrid(np.arange(Nq), np.arange(-Nn, Nn+1))
+            body.iv_mat = iv(L,kq[M][:,:,0]*a)
+            body.kn_mat = kn(L,kq[M][:,:,0]*a)
+            print('... done')
 
         self.Nbodies = self.Nbodies+1
 
@@ -160,7 +171,7 @@ class Array(object):
         h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
         h2 = np.zeros((Nbodies, 1), dtype=complex)
 
-        Tij = {}
+        Tij = self.Tij
 
         for ii in range(Nbodies):
             k = self.k
@@ -177,7 +188,7 @@ class Array(object):
 
             for jj in range(Nbodies):
                 if not (ii==jj):
-                    Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
+                    #Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
 
                     R = self.bodies[jj].R
 
@@ -366,7 +377,8 @@ class Array(object):
             h1 = np.zeros((Nnq*Nbodies, 1), dtype=complex)
             h2 = np.zeros((Nbodies, 1), dtype=complex)
 
-            Tij = {}
+            self.basis_transformation_matrices()
+            Tij = self.Tij
 
             for ii in range(Nbodies):
                 k = self.k
@@ -383,7 +395,7 @@ class Array(object):
 
                 for jj in range(Nbodies):
                     if not (ii==jj):
-                        Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
+                        #Tij[ii, jj] = self.basis_transformation_matrix(jj, ii, shutup=True)
 
                         R = self.bodies[jj].R
 
@@ -572,16 +584,20 @@ class Array(object):
         #T_ij = np.zeros(((2*Nn + 1)*(Nm + 1),(2*Nn + 1)*(Nm + 1)), dtype=complex)
 
         # precompute vectors
-        jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
-        hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
+        #jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
+        jv_vec = self.bodies[jj].jv_vec
+        #hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
+        hank_vec = self.bodies[ii].hank_vec
+        exp_vec = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
         hank_diff_vec = (hankel1(np.arange(-2*Nn, 2*Nn+1), k*L_ij) *
-                        np.exp(1j*alpha_ij*(np.arange(-2*Nn, 2*Nn+1))))
-        M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
-        iv_mat = iv(L,km[M][:,:,0]*aj)
-        kn_mat = kn(L,km[M][:,:,0]*ai)
+                        exp_vec)
+        #M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
+        #iv_mat = iv(L,km[M][:,:,0]*aj)
+        iv_mat = self.bodies[jj].iv_mat
+        #kn_mat = kn(L,km[M][:,:,0]*ai)
+        kn_mat = self.bodies[ii].kn_mat
         M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+1))
         kn_diff_mat = kn(LL,km[M][:,:,0]*L_ij)
-        exp_vec = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
 
         # vectors for building sparse matrix in coordinate form
         data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
@@ -592,7 +608,6 @@ class Array(object):
 
         for n in range(-Nn,Nn+1):
             for l in range(-Nn,Nn+1):
-                #m=0
                 m=0
 
                 data[counter] = jv_vec[l+Nn]/hank_vec[n+Nn]*hank_diff_vec[n-l+2*Nn]
@@ -603,18 +618,134 @@ class Array(object):
                 data[counter:counter+Nm] = (iv_mat[l+Nn,:]/kn_mat[n+Nn,:]*kn_diff_mat[n-l+2*Nn,:]*
                             exp_vec[n-l+2*Nn]*(-1)**l)
 
+                indn = vector_index(n, np.arange(1, Nm+1), Nn, Nm)
+                indl = vector_index(l, np.arange(1, Nm+1), Nn, Nm)
 
-                for m in range(1,Nm+1):
-                    #data[counter] = (iv_mat[l+Nn,m-1]/kn_mat[n+Nn,m-1]*kn_diff_mat[n-l+2*Nn,m-1]*
-                    #            exp_vec[n-l+2*Nn]*(-1)**l)
-                    row_ind[counter] = vector_index(n,m,Nn,Nm)
-                    col_ind[counter] = vector_index(l,m,Nn,Nm)
-                    counter += 1
+                row_ind[counter:counter+Nm] = indn
+                col_ind[counter:counter+Nm] = indl
+
+                counter += Nm
 
         T_ij = coo_matrix((data, (row_ind, col_ind)))
 
 
         return T_ij
+
+
+    def basis_transformation_matrices(self):
+        """
+        Computes all basis transformation matrices fast.
+        """
+        Nn = self.Nn
+        Nm = self.Nq
+
+        k = self.k
+        km = self.kq
+
+        Nb = self.Nbodies
+
+        self.Tij = {}
+
+        x_coord = self.x
+        y_coord = self.y
+
+        Npairs = (Nb*(Nb-1))//2
+        L = np.zeros(Npairs)
+        alpha = np.zeros(Npairs)
+
+        for ii in range(Nb-1):
+            for jj in range(ii+1, Nb):
+                index = ii*Nb - (ii*(ii+1))//2 + jj - (ii+1)
+                L[index] = (
+            np.sqrt((x_coord[jj] - x_coord[ii])**2 + (y_coord[jj] - y_coord[ii])**2))
+                alpha[index] = (
+            np.arctan2(y_coord[jj] - y_coord[ii], x_coord[jj] - x_coord[ii]))
+
+        # precompute arrays
+        AA, NN = np.meshgrid(alpha, np.arange(-2*Nn, 2*Nn+1))
+        exp_mat = np.exp(1j*AA*NN).T
+        LL, NN = np.meshgrid(L, np.arange(-2*Nn, 2*Nn+1))
+        hank_diff_mat = hankel1(NN, k*LL).T
+        LL, MM, NN = np.meshgrid(L,
+                                 np.arange(Nm),
+                                 np.arange(-2*Nn, 2*Nn+1),
+                                )
+        kn_diff_arr = kn(NN, km[MM][:,:,:,0]*LL).transpose(1, 0, 2)
+
+        for ii in range(Nb):
+            for jj in range(Nb):
+                if jj!=ii:
+                    if jj>ii:
+                        index = ii*Nb - (ii*(ii+1))//2 + jj - (ii+1)
+                    else:
+                        index = jj*Nb - (jj*(jj+1))//2 + ii - (jj+1)
+                    jv_vec = self.bodies[jj].jv_vec
+                    hank_vec = self.bodies[ii].hank_vec
+                    exp_vec = exp_mat[index, :]
+                    if ii>jj:
+                        exp_vec *= (-1)**np.arange(4*Nn+1)
+                    hank_diff_vec = hank_diff_mat[index, :]*exp_vec
+                    iv_mat = self.bodies[jj].iv_mat
+                    kn_mat = self.bodies[ii].kn_mat
+                    kn_diff_mat = kn_diff_arr[index, :, :].T
+
+                    # print('kn_diff_mat = ', kn_diff_mat)
+                    #
+                    ai = self.bodies[ii].radius
+                    aj = self.bodies[jj].radius
+                    xi = self.x[ii]
+                    yi = self.y[ii]
+                    xj = self.x[jj]
+                    yj = self.y[jj]
+
+                    L_ij = np.sqrt((xi-xj)*(xi-xj) + (yi-yj)*(yi-yj))
+                    alpha_ij = np.arctan2((yj-yi),(xj-xi))
+                    exp_vec_ex = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
+                    hank_diff_vec_ex = (hankel1(np.arange(-2*Nn, 2*Nn+1), k*L_ij) *
+                                    exp_vec)
+                    M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+1))
+                    kn_diff_mat_ex = kn(LL,km[M][:,:,0]*L_ij)
+
+                    # print('exp_vec = ', exp_vec)
+                    # print('exp_vec_ex = ', exp_vec_ex)
+                    # print('alpha_ij = ', alpha_ij)
+                    # print('alpha[index] = ', alpha[index])
+                    # print('L_ij = ', L_ij)
+                    # print('L[index] = ', L[index])
+                    # print(np.linalg.norm(exp_vec-exp_vec_ex))
+                    # print(np.linalg.norm(hank_diff_vec-hank_diff_vec_ex))
+                    # print(np.linalg.norm(kn_diff_mat-kn_diff_mat_ex, ord='fro'))
+                    #
+                    # print('kn_diff_mat = ', kn_diff_mat)
+
+                    # vectors for building sparse matrix in coordinate form
+                    data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
+                    row_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
+                    col_ind = np.zeros((2*Nn+1)**2*(Nm+1), dtype=np.int32)
+
+                    counter = 0
+
+                    for n in range(-Nn,Nn+1):
+                        for l in range(-Nn,Nn+1):
+                            m=0
+
+                            data[counter] = jv_vec[l+Nn]/hank_vec[n+Nn]*hank_diff_vec[n-l+2*Nn]
+                            row_ind[counter] = vector_index(n,m,Nn,Nm)
+                            col_ind[counter] = vector_index(l,m,Nn,Nm)
+                            counter += 1
+
+                            data[counter:counter+Nm] = (iv_mat[l+Nn,:]/kn_mat[n+Nn,:]*kn_diff_mat[n-l+2*Nn,:]*
+                                        exp_vec[n-l+2*Nn]*(-1)**l)
+
+                            indn = vector_index(n, np.arange(1, Nm+1), Nn, Nm)
+                            indl = vector_index(l, np.arange(1, Nm+1), Nn, Nm)
+
+                            row_ind[counter:counter+Nm] = indn
+                            col_ind[counter:counter+Nm] = indl
+
+                            counter += Nm
+
+                    self.Tij[jj, ii] = coo_matrix((data, (row_ind, col_ind)))
 
 
 
@@ -910,12 +1041,16 @@ class Array(object):
                     aj = self.bodies[jj].radius
 
 
-                    jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
-                    hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
+                    #jv_vec = jv(np.arange(-Nn, Nn+1), k*aj)
+                    jv_vec = self.bodies[jj].jv_vec
+                    #hank_vec = hankel1(np.arange(-Nn, Nn+1), k*ai)
+                    hank_vec = self.bodies[ii].hank_vec
                     hank_diff_vec = hankel1(np.arange(-2*Nn, 2*Nn+2), k*dist[ii,jj])
-                    M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
-                    iv_mat = iv(L,km[M][:,:,0]*aj)
-                    kn_mat = kn(L,km[M][:,:,0]*ai)
+                    #M, L = np.meshgrid(np.arange(Nm), np.arange(-Nn, Nn+1))
+                    #iv_mat = iv(L,km[M][:,:,0]*aj)
+                    iv_mat = self.bodies[jj].iv_mat
+                    #kn_mat = kn(L,km[M][:,:,0]*ai)
+                    kn_mat = self.bodies[ii].kn_mat
                     M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+2))
                     kn_diff_mat = kn(LL,km[M][:,:,0]*dist[ii,jj])
                     exp_vec = np.exp(1j*alpha[ii,jj]*np.arange(-2*Nn, 2*Nn+1))
