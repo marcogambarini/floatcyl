@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.special import *
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, bmat, eye
 from scipy.sparse.linalg import LinearOperator, gmres
 
 from floatcyl.utils.utils import *
@@ -230,11 +230,15 @@ class Array(object):
         else:
             def M11v(v):
                 mv = np.zeros(len(v), dtype=complex)
+                # slow, old implementation with a loop
+                # for ii in range(Nbodies):
+                #     for jj in range(Nbodies):
+                #         if not (ii==jj):
+                #             mv[ii*Nnq:(ii+1)*Nnq] += (
+                #                 self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
+                mv_temp = self.TijTblock@v
                 for ii in range(Nbodies):
-                    for jj in range(Nbodies):
-                        if not (ii==jj):
-                            mv[ii*Nnq:(ii+1)*Nnq] += (
-                                self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
+                    mv[ii*Nnq:(ii+1)*Nnq] = self.bodies[ii].B @ mv_temp[ii*Nnq:(ii+1)*Nnq]
 
                 # identity contribution in return
                 return -v + mv
@@ -256,11 +260,16 @@ class Array(object):
 
             def M11Hv(v):
                 mv = np.zeros(len(v), dtype=complex)
-                for ii in range(Nbodies):
-                    for jj in range(Nbodies):
-                        if not (ii==jj):
-                            mv[jj*Nnq:(jj+1)*Nnq] += (
-                                np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+                # for ii in range(Nbodies):
+                #     for jj in range(Nbodies):
+                #         if not (ii==jj):
+                #             mv[jj*Nnq:(jj+1)*Nnq] += (
+                #                 np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+                mv_temp = np.zeros(len(v), dtype=complex)
+                for jj in range(Nbodies):
+                    mv_temp[jj*Nnq:(jj+1)*Nnq] = self.bodies[jj].B.T @ v[jj*Nnq:(jj+1)*Nnq].conj()
+                mv = self.TijTblock.T@mv_temp
+                np.conj(mv, out=mv)
 
                 # identity contribution in return
                 return -v + mv
@@ -412,11 +421,15 @@ class Array(object):
 
             def M11v(v):
                 mv = np.zeros(len(v), dtype=complex)
+                # slow, old implementation with a loop
+                # for ii in range(Nbodies):
+                #     for jj in range(Nbodies):
+                #         if not (ii==jj):
+                #             mv[ii*Nnq:(ii+1)*Nnq] += (
+                #                 self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
+                mv_temp = self.TijTblock@v
                 for ii in range(Nbodies):
-                    for jj in range(Nbodies):
-                        if not (ii==jj):
-                            mv[ii*Nnq:(ii+1)*Nnq] += (
-                                self.bodies[ii].B @ (Tij[ii, jj].T @ v[jj*Nnq:(jj+1)*Nnq]))
+                    mv[ii*Nnq:(ii+1)*Nnq] = self.bodies[ii].B @ mv_temp[ii*Nnq:(ii+1)*Nnq]
 
                 # identity contribution in return
                 return -v + mv
@@ -638,6 +651,7 @@ class Array(object):
         """
         Nn = self.Nn
         Nm = self.Nq
+        Nnq = (2*Nn + 1)*(Nm + 1)
 
         k = self.k
         km = self.kq
@@ -693,34 +707,6 @@ class Array(object):
                     kn_mat = self.bodies[ii].kn_mat
                     kn_diff_mat = self.kn_diff_arr[index, :, :].T
 
-                    # print('kn_diff_mat = ', kn_diff_mat)
-                    #
-                    # ai = self.bodies[ii].radius
-                    # aj = self.bodies[jj].radius
-                    # xi = self.x[ii]
-                    # yi = self.y[ii]
-                    # xj = self.x[jj]
-                    # yj = self.y[jj]
-                    #
-                    # L_ij = np.sqrt((xi-xj)*(xi-xj) + (yi-yj)*(yi-yj))
-                    # alpha_ij = np.arctan2((yj-yi),(xj-xi))
-                    # exp_vec_ex = np.exp(1j*alpha_ij*np.arange(-2*Nn, 2*Nn+1))
-                    # hank_diff_vec_ex = (hankel1(np.arange(-2*Nn, 2*Nn+1), k*L_ij) *
-                    #                 exp_vec)
-                    # M, LL = np.meshgrid(np.arange(Nm), np.arange(-2*Nn, 2*Nn+1))
-                    # kn_diff_mat_ex = kn(LL,km[M][:,:,0]*L_ij)
-
-                    # print('exp_vec = ', exp_vec)
-                    # print('exp_vec_ex = ', exp_vec_ex)
-                    # print('alpha_ij = ', alpha_ij)
-                    # print('alpha[index] = ', alpha[index])
-                    # print('L_ij = ', L_ij)
-                    # print('L[index] = ', L[index])
-                    # print(np.linalg.norm(exp_vec-exp_vec_ex))
-                    # print(np.linalg.norm(hank_diff_vec-hank_diff_vec_ex))
-                    # print(np.linalg.norm(kn_diff_mat-kn_diff_mat_ex, ord='fro'))
-                    #
-                    # print('kn_diff_mat = ', kn_diff_mat)
 
                     # vectors for building sparse matrix in coordinate form
                     data = np.zeros((2*Nn+1)**2*(Nm+1), dtype=complex)
@@ -750,7 +736,10 @@ class Array(object):
                             counter += Nm
 
                     self.Tij[jj, ii] = coo_matrix((data, (row_ind, col_ind)))
+                else:
+                    self.Tij[jj, ii] = coo_matrix((Nnq, Nnq))
 
+        self.TijTblock = bmat([[self.Tij[jj, ii].T for ii in range(Nb)] for jj in range(Nb)])
 
 
     def incident_wave_coeffs(self, k, beta, a, x, y, Nn, Nm):
@@ -1294,12 +1283,16 @@ class Array(object):
             Tij = self.Tij
 
             def M11Hv(v):
-                mv = np.zeros(len(v), dtype=complex)
-                for ii in range(Nbodies):
-                    for jj in range(Nbodies):
-                        if not (ii==jj):
-                            mv[jj*Nnq:(jj+1)*Nnq] += (
-                                np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+                # mv = np.zeros(len(v), dtype=complex)
+                # for ii in range(Nbodies):
+                #     for jj in range(Nbodies):
+                #         if not (ii==jj):
+                #             mv[jj*Nnq:(jj+1)*Nnq] += (
+                #                 np.conj(Tij[ii, jj]) @ (np.conj(self.bodies[ii].B.T) @ v[ii*Nnq:(ii+1)*Nnq]))
+                mv_temp = np.zeros(len(v), dtype=complex)
+                for jj in range(Nbodies):
+                    mv_temp[jj*Nnq:(jj+1)*Nnq] = np.conj(self.bodies[jj].B.T) @ v[jj*Nnq:(jj+1)*Nnq]
+                mv = np.conj(self.TijTblock.T)@mv_temp
 
                 # identity contribution in return
                 return -v + mv
