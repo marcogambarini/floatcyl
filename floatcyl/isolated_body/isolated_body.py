@@ -425,7 +425,7 @@ class Cylinder(object):
                         col_ind[counter] = vector_index(n,m,Nn,Nq)
                         counter += 1
 
-        B = coo_matrix((data, (row_ind, col_ind)))
+        B = coo_matrix((data, (row_ind, col_ind))).tocsr()
 
         return B
 

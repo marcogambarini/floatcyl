@@ -12,7 +12,7 @@ g = 9.81
 a = 1.
 draft = 0.5
 
-h = 0.000001
+h = 0.1
 
 denseops = False
 
