@@ -1613,7 +1613,7 @@ class Array(object):
 
         return gradJx, gradJy
 
-    @profile
+    #@profile
     def jac_positions(self):
         """
         Computes the Jacobian of the residual Mz-h with respect to
