@@ -2,6 +2,7 @@
 
 import numpy as np
 from scipy.special import *
+from scipy.sparse import coo_matrix
 
 from floatcyl.utils.utils import *
 
@@ -9,7 +10,7 @@ class Cylinder(object):
 
     def __init__(self, radius=1., draft=0.4, depth=30., k=0.01,
                 kq=[0.4], Nn=5, Nq=10, omega=3., water_density=1000.,
-                g = 9.81):
+                g = 9.81, gamma=0, delta=0, torque_coeff=None):
         """Simple constructor with kwargs.
         The choice of kwargs is just for readability. They are all
         always needed. Actually, some of them (depth, k, omega)
@@ -39,6 +40,13 @@ class Cylinder(object):
             water density (default: 1000.)
         g: float
             gravitational field (default: 9.81)
+        gamma: float
+            Damping coefficient of the electrical generator or turbine
+        delta: float
+            Stiffness coefficient of the electrical generator
+        torque_coeff: array
+            Polynomial coefficients of the produced power (they multiply
+            the powers of velocity amplitude)
         """
         self.radius = radius
         self.draft = draft
@@ -51,7 +59,15 @@ class Cylinder(object):
         self.water_density = water_density
         self.g = g
 
+        self.gamma = gamma
+        self.delta = delta
+        self.torque_coeff = torque_coeff
+
         self.clearance = depth-draft
+
+        # Intermediate quantities
+        self.ivp_iv_mat = None
+        self.kv_mat = None
 
 
     def compute_diffraction_properties(self):
@@ -62,9 +78,17 @@ class Cylinder(object):
 
         Nq = self.Nq
         Nn = self.Nn
+        a = self.radius
+        h = self.clearance
 
         D = np.zeros((Nq+1, 2*Nn+1, Nq+1), dtype=complex) #external coeffs
         C = np.zeros((Nq+1, 2*Nn+1, Nq+1), dtype=complex) #internal coeffs
+
+        # precomputation of a heavy term
+        M, N = np.meshgrid(np.arange(1, Nq+1), np.arange(-Nn, Nn+1))
+        self.ivp_iv_mat = ivp(N, M*np.pi*a/h)/iv(N, M*np.pi*a/h)
+        self.kv_mat = kv(N, self.kq[M-1][:,:,0]*a)
+
 
         for n in range(-Nn, Nn+1):
             for m in range(Nq+1):
@@ -102,6 +126,8 @@ class Cylinder(object):
         draft = self.draft
         rho = self.water_density
 
+        gamma = self.gamma
+        delta = self.delta
 
 
         #Y
@@ -137,15 +163,17 @@ class Cylinder(object):
         #equiv area is eq. (3.150)
         equiv_area = -1j * omega*omega*np.pi/(2*self.g*h) * (
                     h*h*a*a - 0.25*a*a*a*a) + self.Rtilde.T@self.Y
-
+        self.equiv_area = equiv_area
 
         #mass obtained from hydrostatic balance
         self.mass = np.pi * a*a * draft * rho
         #hydrostatic stiffness from geometry
         self.hyd_stiff = np.pi*a*a*rho*self.g
+        #power take-off contribution
 
-        self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega - self.hyd_stiff)
 
+        self.W = equiv_area - 1j/(rho*self.g) * (self.mass*omega*omega
+                                                - self.hyd_stiff + 1j*omega*gamma - delta)
 
 
     def isolated_body_matrices_diff(self, n, m):
@@ -204,10 +232,15 @@ class Cylinder(object):
         s = sq_grid[0,:,:]
         q = sq_grid[1,:,:]
 
-        E[:,1:Nq] = -2*h*kv(n, kq[q-1][:,:,0]*a)/dKnkqa[q-1][:,:,0] * (
+        if self.kv_mat is None:
+            E[:,1:Nq] = -2*h*kv(n, kq[q-1][:,:,0]*a)/dKnkqa[q-1][:,:,0] * (
                     (kq[q-1][:,:,0]*(-1)**s*sinkqh[q-1][:,:,0]) /
                     (sqrtNq[q-1][:,:,0] * (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)) )
-
+        else:
+            tiled_kv = np.tile(self.kv_mat[n+self.Nn,:], (Nq, 1))
+            E[:,1:Nq] = -2*h*tiled_kv/dKnkqa[q-1][:,:,0] * (
+                    (kq[q-1][:,:,0]*(-1)**s*sinkqh[q-1][:,:,0]) /
+                    (sqrtNq[q-1][:,:,0] * (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)) )
 
 
         #U vector
@@ -233,7 +266,15 @@ class Cylinder(object):
         sq_grid = np.mgrid[1:Nq, 1:Nq]
         q = sq_grid[0,:,:]
         s = sq_grid[1,:,:]
-        G[1:Nq, 1:Nq] = ivp(n, s*np.pi*a/h)/iv(n, s*np.pi*a/h) * (
+
+
+        if self.ivp_iv_mat is None:
+            G[1:Nq, 1:Nq] = ivp(n, s*np.pi*a/h)/iv(n, s*np.pi*a/h) * (
+                (s*np.pi*h*(-1)**s*sinkqh[q-1][:,:,0])/(
+                (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)*d*sqrtNq[q-1][:,:,0]))
+        else:
+            tiled_ivp_iv = np.tile(self.ivp_iv_mat[n+self.Nn,:], (Nq-1, 1))
+            G[1:Nq, 1:Nq] = tiled_ivp_iv * (
                 (s*np.pi*h*(-1)**s*sinkqh[q-1][:,:,0])/(
                 (-s*s*np.pi*np.pi + kq[q-1][:,:,0]*kq[q-1][:,:,0]*h*h)*d*sqrtNq[q-1][:,:,0]))
 
@@ -288,6 +329,7 @@ class Cylinder(object):
 
         return q, s
 
+    #@profile
     def body_diffraction_matrix(self, D):
         """Computes the external diffraction matrix B from the results of the
         isolated body analysis stored in array D.
@@ -315,50 +357,75 @@ class Cylinder(object):
 
         Nq = np.shape(kq)[0]
 
-        B = np.zeros(((2*Nn + 1)*(Nq + 1),(2*Nn + 1)*(Nq + 1)), dtype=complex)
+        #B = np.zeros(((2*Nn + 1)*(Nq + 1),(2*Nn + 1)*(Nq + 1)), dtype=complex)
+        # vectors for building sparse matrix in coordinate form
+        data = np.zeros((2*Nn+1)*(Nq+1)**2, dtype=complex)
+        row_ind = np.zeros((2*Nn+1)*(Nq+1)**2, dtype=np.int32)
+        col_ind = np.zeros((2*Nn+1)*(Nq+1)**2, dtype=np.int32)
 
+        counter = 0
 
         for n in range(-Nn,Nn+1):
             #incident prog. wave, scattered prog. wave
             m = 0
             q = 0
-            B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+            data[counter] = (
              hankel1(n,k*a)/jv(n,k*a)/h1vp(n,k*a) * (-jvp(n,k*a) +
              (1j)**(-n) * D[0,n,0]*np.cosh(k*d)/sqrtN0)
             )
+            row_ind[counter] = vector_index(n,q,Nn,Nq)
+            col_ind[counter] = vector_index(n,m,Nn,Nq)
+            counter += 1
 
 
             #incident prog. wave, scattered evan. wave
             m = 0
             for q in range(1,Nq+1):
-                B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+                data[counter] = (
                  kn(n,kq[q-1]*a)/jv(n,k*a) * (1j)**(-n) * D[q,n,0]/
                  sqrtNq[q-1]/kvp(n, kq[q-1]*a)
                 )
+                row_ind[counter] = vector_index(n,q,Nn,Nq)
+                col_ind[counter] = vector_index(n,m,Nn,Nq)
+                counter += 1
 
             #incident evan. wave, scattered prog. wave
             q = 0
             for m in range(1,Nq+1):
-                B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+                data[counter] = (
                  hankel1(n,k*a)/iv(n,kq[m-1]*a) * D[0,n,m]*np.cosh(k*d)/
                  (sqrtN0 * h1vp(n,k*a))
                 )
+                row_ind[counter] = vector_index(n,q,Nn,Nq)
+                col_ind[counter] = vector_index(n,m,Nn,Nq)
+                counter += 1
 
             #incident evan. wave, scattered evan. wave
             for q in range(1,Nq+1):
+                # Precomputations (quantities independent of m)
+                kvp_n_q = kvp(n,kq[q-1]*a)
+                kn_n_q = kn(n,kq[q-1]*a)
                 for m in range(1,Nq+1):
                     if (q!=m):
-                        B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
-                         kn(n,kq[q-1]*a)/iv(n,kq[m-1]*a) *
-                         D[q,n,m] / (sqrtNq[q-1]*kvp(n,kq[q-1]*a))
+                        data[counter] = (
+                         kn_n_q/iv(n,kq[m-1]*a) *
+                         D[q,n,m] / (sqrtNq[q-1]*kvp_n_q)
                         )
+                        row_ind[counter] = vector_index(n,q,Nn,Nq)
+                        col_ind[counter] = vector_index(n,m,Nn,Nq)
+                        counter += 1
                     else:
-                        B[vector_index(n,q,Nn,Nq), vector_index(n,m,Nn,Nq)] = (
+                        data[counter] = (
                          kn(n,kq[m-1]*a)/iv(n,kq[m-1]*a) * (
                          -ivp(n,kq[m-1]*a)/kvp(n,kq[m-1]*a) +
                          D[m,n,m]/(sqrtNq[m-1]*kvp(n,kq[m-1]*a))
                          )
                         )
+                        row_ind[counter] = vector_index(n,q,Nn,Nq)
+                        col_ind[counter] = vector_index(n,m,Nn,Nq)
+                        counter += 1
+
+        B = coo_matrix((data, (row_ind, col_ind))).tocsr()
 
         return B
 
