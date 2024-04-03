@@ -20,3 +20,20 @@ Utils
 -----
 .. automodule:: floatcyl.utils.utils
     :members:
+
+Gradient flow
+-------------
+.. automodule:: floatcyl.gradflow.inoutpolygonmesh
+    :members:
+
+.. automodule:: floatcyl.gradflow.constr_jac
+    :members:
+
+.. automodule:: floatcyl.gradflow.random_pos
+    :members:
+
+.. automodule:: floatcyl.gradflow.flowmap
+    :members:
+
+.. automodule:: floatcyl.gradflow.rkflow
+    :members:
