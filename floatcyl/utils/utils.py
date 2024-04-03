@@ -69,6 +69,7 @@ def discrete_PM_spectrum(Te, Hs, Nbins, filename=None, thres=1e-3,
     f_L = (-b/np.log(thres/2))**0.25
     f_R = (-b/np.log(1-thres/2))**0.25
 
+    P_negl = P_tot - (Pcumfun(f_R) - Pcumfun(f_L))
 
     # Discretize the spectrum
     bin_edges = np.zeros(Nbins+1)
@@ -111,6 +112,8 @@ def discrete_PM_spectrum(Te, Hs, Nbins, filename=None, thres=1e-3,
                 fi = 0.5*(bin_edges[ii] + bin_edges[ii+1])
                 bin_H[ii] = 2 * np.sqrt(2 * fi * j_bin)
                 last_Jcum = Jcum
+        else:
+            raise ValueError('Criteria for spectrum disc can be F, E or J')
 
     bin_centers = 0.5*(bin_edges[:-1] + bin_edges[1:])
     omega = bin_centers*2*np.pi

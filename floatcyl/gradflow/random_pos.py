@@ -5,7 +5,7 @@ from numpy.random import default_rng
 import matplotlib.pyplot as plt
 
 
-def random_in_square(r, L, N, maxit=100, seed=None):
+def random_in_square(r, xL, xR, yL, yU, N, maxit=100, seed=None):
     """
     Puts N circles of radius r in a square of edge L, without overlaps
     kwarg: maxit (maximum number of total inner iterations)
@@ -14,15 +14,15 @@ def random_in_square(r, L, N, maxit=100, seed=None):
     """
 
     max_packing = np.pi * np.sqrt(3) / 6
-    if (N * np.pi*r**2/L**2) > max_packing:
+    if (N * np.pi*r**2/((xR-xL)*(yU-yL))) > max_packing:
         raise ValueError('Impossible packing!')
 
 
     rng = default_rng(seed=seed)
 
 
-    xc = rng.uniform(-L/2, L/2, N)
-    yc = rng.uniform(-L/2, L/2, N)
+    xc = rng.uniform(xL, xR, N)
+    yc = rng.uniform(yL, yU, N)
 
     nit = 0
 
@@ -44,8 +44,8 @@ def random_in_square(r, L, N, maxit=100, seed=None):
             nit = 0
             while overlaps and nit<maxit:
                 nit += 1
-                xc[ii] = rng.uniform(-L/2, L/2)
-                yc[ii] = rng.uniform(-L/2, L/2)
+                xc[ii] = rng.uniform(xL, xR)
+                yc[ii] = rng.uniform(yL, yU)
                 overlaps = False
                 # Check if cylinder ii has overlaps with any other
                 for jj in range(N):
@@ -57,8 +57,6 @@ def random_in_square(r, L, N, maxit=100, seed=None):
                 reiterate = True
 
         outer_iter += 1
-
-
 
 
     return xc, yc

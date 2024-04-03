@@ -29,7 +29,7 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
         Relative tolerance for stepsize selection (default: 1e-3)
     adapt_tol: boolean
         Whether to adapt the stepsize selection tolerance to the
-        stopping criterion (default: False)
+        stopping criterion (default: True)
 
     Returns
     -------
@@ -66,6 +66,7 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
     while t<Tmax and stop_crit>stop_tol:
         # output to log file now (don't wait)
         sys.stdout.flush()
+        print('t = ', t)
         f, g_vec, k2 = flowmap.compute_phi(W + dt*k1)
 
         W_EE = W + dt * k1 # Explicit Euler step
@@ -78,7 +79,7 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
                 atol = 0.1 * dt * np.linalg.norm(k1)**2/np.linalg.norm(k2 - k1)
             else:
                 atol = min(atol, 0.1 * dt * np.linalg.norm(k1)**2/np.linalg.norm(k2 - k1))
-            print('Estimated required tolerance = ', atol)
+            print('Estimated required RK tolerance = ', atol)
             err = np.linalg.norm(W_H - W_EE) / atol
             print('Error indicator = ', err)
             print('k2-k1 = ', np.linalg.norm(k2 - k1))
@@ -112,9 +113,9 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
     return tvec, Wvec, fhist, ghist
 
 
-def meritnorm(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
+def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
     """
-    merit function with rhs norm
+    Explicit Euler
 
     Parameters
     ----------
@@ -143,19 +144,10 @@ def meritnorm(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
 
     while t<Tmax and stop_crit>stop_tol:
         # output to log file now (don't wait)
+        sys.stdout.flush()
         dt = dt_0
 
-        sys.stdout.flush()
         f0, g_vec0, phi = flowmap.compute_phi(W)
-        _, _, phit = flowmap.compute_phi(W + phi*dt)
-        while np.linalg.norm(phit)>np.linalg.norm(phi) and t>10:
-            print('backtracking')
-            print('phinorm=',np.linalg.norm(phi))
-            print('phitnorm=',np.linalg.norm(phit))
-            dt /= 2
-            _, _, phit = flowmap.compute_phi(W + phi*dt)
-
-
         W = W + dt * phi # Explicit Euler step
 
         normgvec = np.linalg.norm(g_vec0, ord=2)

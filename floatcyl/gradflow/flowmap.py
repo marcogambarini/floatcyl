@@ -13,7 +13,7 @@ class linsys_counter(object):
 
 class Flowmap(object):
     def __init__(self, cylArrays, domain_constr, alpha_slam, min_dist,
-            adapt_tol=False):
+            adapt_tol=False, cg_tol=1e-5):
         """
         Parameters
         ----------
@@ -28,6 +28,8 @@ class Flowmap(object):
         adapt_tol: boolean
             Whether to adapt the tolerance of CG to the current value
             of norm(Phi)
+        cg_tol: float
+            Tolerance for CG. Ignored if adapt_tol is True
         """
 
         self.cylArrays = cylArrays
@@ -67,6 +69,8 @@ class Flowmap(object):
             # Initialization ofstimate of the pseudoinverse norm and Phi norm
             self.pinvJgnorm = 1.
             self.Phinorm = 1.
+        else:
+            self.cg_tol = cg_tol
 
 
     def initial_state_and_global_scalings(self, x0, y0, gen_damping, gen_stiffness):
@@ -575,24 +579,22 @@ class Flowmap(object):
         #print(np.linalg.norm(G))
         counter = linsys_counter()
 
-        # It is enough that tolerance be an order of magnitude smaller than constraint norm
-        #self.cg_tol = min(1e-5, np.linalg.norm(G)/10)
-        #self.cg_tol = np.linalg.norm(G)/10
-        self.cg_tol = min(0.1*np.linalg.norm(G), 0.1*self.Phinorm/self.pinvJgnorm)
-        print('Estimated required cg tolerance = ', self.cg_tol)
+        if self.adapt_tol:
+            self.cg_tol = min(0.1*np.linalg.norm(G), 0.1*self.Phinorm/self.pinvJgnorm)
+            print('Estimated required CG tolerance = ', self.cg_tol)
 
         # solve
         if alpha_F==0:
             lam, info = cg(A, rhs, x0=oldRestoreSol, callback=counter)
-            print(counter.niter, ' cg iterations')
+            print(counter.niter, ' CG iterations')
             self.oldRestoreSol = lam
         else:
             lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol)
-            print(counter.niter, ' cg iterations')
+            print(counter.niter, ' CG iterations')
             self.oldSol = lam
 
         if info==0:
-            print('successful cg iterations')
+            print('successful CG iterations')
 
 
         ulam = mvre_JgT(lam)

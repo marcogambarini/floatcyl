@@ -7,7 +7,7 @@ Computation of the constraint function and Jacobian matrix
 import numpy as np
 import firedrake as fd
 from scipy.sparse import csr_array
-from inoutpolygonmesh import PolygonHole
+from .inoutpolygonmesh import PolygonHole
 
 class PolyConstraint:
     def __init__(self, vertices, meshFileName='rectpoly',
