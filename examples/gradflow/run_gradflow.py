@@ -13,7 +13,7 @@ from floatcyl.gradflow.rkflow import *
 class StrictConfigParser(configparser.RawConfigParser):
     # config parser which raises exception instead of having fallbacks
     def get(self, section, option, raw=False, vars=None, fallback=None):
-        print('\nreading section ', section, ', option ', option)
+        print('reading section ', section, ', option ', option)
         var = super().get(section, option, raw=raw, vars=vars, fallback=None)
         if var is None:
             raise RuntimeError("No option %r in section: %r" %
@@ -93,11 +93,14 @@ x0, y0 = random_in_square(min_dist/2,
         np.min(vertices[:,1]), np.max(vertices[:,1]),
         Nbodies, seed=seed)
 
+
+print('\nCalling gmsh to build the grid...')
 # Initialize domain constraints
 domain_constr = PolyConstraint(vertices, meshFileName=run_name,
                  rect_factor=rect_factor, h_outer=h_outer,
                  h_inner=h_inner, save_pvd=save_pvd,
                  projmethod=projmethod, nu=nu)
+print('Done')
 
 ######################## SPECTRUM SETUP ########################
 omegavec, amplitude = fcl.utils.utils.discrete_PM_spectrum(
@@ -109,7 +112,7 @@ Hvec = 2*amplitude
 wavenum = []
 cylArrays = []
 for ii in range(Nf):
-    print('Frequency ', ii+1, '/', Nf)
+    print('\nFrequency ', ii+1, '/', Nf)
     wavenum.append(fcl.real_disp_rel(omegavec[ii], depth)) # real wavenumber
     kq = fcl.imag_disp_rel(omegavec[ii], depth, Nq) # imaginary wavenumbers
 
@@ -134,7 +137,7 @@ for ii in range(Nf):
 
     cylArrays.append(cylArray)
 
-    print('Finished array initialization\n')
+    print('Finished array initialization')
 
 
 ###################### GRADIENT FLOW RUN #######################

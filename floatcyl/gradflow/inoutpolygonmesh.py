@@ -38,6 +38,7 @@ class PolygonHole(object):
 
         # Initialize the API
         gmsh.initialize(sys.argv)
+        gmsh.option.setNumber("General.Verbosity", 0)
 
         # Outer perimeter
         outer_list = []
