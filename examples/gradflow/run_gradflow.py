@@ -10,10 +10,22 @@ from floatcyl.gradflow.flowmap import Flowmap
 from floatcyl.gradflow.rkflow import *
 
 #################### READ PARAMETER FILE ####################
-conf = configparser.ConfigParser()
+class StrictConfigParser(configparser.RawConfigParser):
+    # config parser which raises exception instead of having fallbacks
+    def get(self, section, option, raw=False, vars=None, fallback=None):
+        print('\nreading section ', section, ', option ', option)
+        var = super().get(section, option, raw=raw, vars=vars, fallback=None)
+        if var is None:
+            raise RuntimeError("No option %r in section: %r" %
+                       (option, section))
+        else:
+            return var
+
+
+conf = StrictConfigParser()
 conf.read('params.ini')
 
-run_name = conf['rundata']['run_name']
+run_name = conf['rundata'].get('run_name')
 
 rho = conf['environment'].getfloat('rho')
 g = conf['environment'].getfloat('g')
@@ -29,13 +41,13 @@ gen_stiffness = conf['control'].getfloat('gen_stiffness')
 
 Nbodies = conf['array'].getint('Nbodies')
 min_dist = conf['array'].getfloat('min_dist')
-vertex_file = conf['array']['vertex_file']
+vertex_file = conf['array'].get('vertex_file')
 seed = conf['array'].getint('seed')
 rect_factor = conf['array'].getfloat('rect_factor')
 h_outer = conf['array'].getfloat('h_outer')
 h_inner = conf['array'].getfloat('h_inner')
 save_pvd = conf['array'].getboolean('save_pvd')
-projmethod = conf['array']['projmethod']
+projmethod = conf['array'].get('projmethod')
 nu = conf['array'].getfloat('nu')
 
 Te = conf['waves'].getfloat('Te')
@@ -43,23 +55,27 @@ Hs = conf['waves'].getfloat('Hs')
 beta = conf['waves'].getfloat('beta') # in degrees
 thres = conf['waves'].getfloat('thres')
 Nf = conf['waves'].getint('Nf')
-crit = conf['waves']['crit']
+crit = conf['waves'].get('crit')
 
 Nn = conf['numerics'].getint('Nn')
 Nq = conf['numerics'].getint('Nq')
 dt_0 = conf['numerics'].getfloat('dt_0')
 stop_tol = conf['numerics'].getfloat('stop_tol')
 Tfin = conf['numerics'].getfloat('Tfin')
-method = conf['numerics']['method']
+method = conf['numerics'].get('method')
 adapt_CG_tol = conf['numerics'].getboolean('adapt_CG_tol')
 if adapt_CG_tol:
-    cg_tol = None
+    CG_tol = None
 else:
-    try:
-        cg_tol = conf['numerics'].getfloat('CG_tol')
-    except:
-        raise RuntimeError('If adapt_CG_tol is false, CG_tol must be provided')
-
+    CG_tol = conf['numerics'].getfloat('CG_tol', None)
+if method=='RK12':
+    adapt_RK_tol = conf['numerics'].getboolean('adapt_RK_tol')
+    if adapt_RK_tol:
+        RK_atol = None
+        RK_rtol = None
+    else:
+        RK_atol = conf['numerics'].getfloat('RK_atol')
+        RK_rtol = conf['numerics'].getfloat('RK_rtol')
 
 ######################### DOMAIN SETUP #########################
 # Read vertex file
@@ -124,14 +140,15 @@ for ii in range(Nf):
 ###################### GRADIENT FLOW RUN #######################
 # Initialize flowmap
 flowmap = Flowmap(cylArrays, domain_constr, alpha_slam, min_dist,
-                    adapt_tol=adapt_CG_tol, cg_tol=cg_tol)
+                    adapt_tol=adapt_CG_tol, cg_tol=CG_tol)
 w0 = flowmap.initial_state_and_global_scalings(x0, y0, gen_damping, gen_stiffness)
 
 # Time stepping
 if method=='RK12':
     tvec, Wvec, fhist, ghist = eeheun(w0, flowmap, stop_tol,
                                       Tmax=Tfin, dt_0=dt_0,
-                                      order=1, adapt_tol=True)
+                                      order=1, adapt_tol=adapt_RK_tol,
+                                      atol=RK_atol, rtol=RK_rtol)
 elif method=='EE':
     tvec, Wvec, fhist, ghist = euler(w0, flowmap, stop_tol,
                                       Tmax=Tfin, dt_0=dt_0)

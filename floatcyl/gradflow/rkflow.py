@@ -29,7 +29,8 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
         Relative tolerance for stepsize selection (default: 1e-3)
     adapt_tol: boolean
         Whether to adapt the stepsize selection tolerance to the
-        stopping criterion (default: True)
+        stopping criterion (default: True). If True, values
+        of atol and rtol will be ignored.
 
     Returns
     -------
