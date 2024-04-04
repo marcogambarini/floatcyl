@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.sparse import diags
 from scipy.sparse.linalg import cg, LinearOperator
+from time import perf_counter
 
 class linsys_counter(object):
     def __init__(self, disp=True):
@@ -71,6 +72,7 @@ class Flowmap(object):
             self.Phinorm = 1.
         else:
             self.cg_tol = cg_tol
+
 
 
     def initial_state_and_global_scalings(self, x0, y0, gen_damping, gen_stiffness):
@@ -294,7 +296,7 @@ class Flowmap(object):
         return (-power/self.cost_scale, g_vec)
 
 
-    def compute_phi(self, w, alpha_F=1, alpha_G=1):
+    def compute_phi(self, w, alpha_F=1, alpha_G=1, monitor=False):
         """
         Computes cost and constraint functions with constant scaling
         (so that they can be compared between iterations), same as in compute_f_g,
@@ -311,6 +313,8 @@ class Flowmap(object):
             Weight of the projected gradient contribution (default: 1.)
         alpha_G: float
             Weight of the constraint restoration constribution (default: 1.)
+        monitor: boolean
+            Whether to save performance monitoring data (default: False)
 
         Returns
         -------
@@ -321,6 +325,9 @@ class Flowmap(object):
         Phi: array
             Gradient flow direction
         """
+        if monitor:
+            monitor_t0 = perf_counter()
+
         x, y, zvec, c, k, sx_overlap, sx_domain, sz = self.w_split(w)
         sx = np.concatenate([sx_overlap, sx_domain])
         cylArrays, domain_constr = self.cylArrays, self.domain_constr
@@ -584,6 +591,8 @@ class Flowmap(object):
             print('Estimated required CG tolerance = ', self.cg_tol)
 
         # solve
+        if monitor:
+            monitor_t0_CG = perf_counter()
         if alpha_F==0:
             lam, info = cg(A, rhs, x0=oldRestoreSol, callback=counter)
             print(counter.niter, ' CG iterations')
@@ -592,6 +601,8 @@ class Flowmap(object):
             lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol)
             print(counter.niter, ' CG iterations')
             self.oldSol = lam
+        if monitor:
+            monitor_time_CG = perf_counter() - monitor_t0_CG
 
         if info==0:
             print('successful CG iterations')
@@ -608,10 +619,20 @@ class Flowmap(object):
             self.pinvJgnorm = np.linalg.norm(ulam)/np.linalg.norm(rhs)
             self.Phinorm = np.linalg.norm(Phi)
 
-        # returns f, g, Phi
-        return (-power/self.cost_scale,
-                np.concatenate([gx/self.x_scale**2,
-                        rhs8re,
-                        rhs8im,
-                        gs/np.max(self.drafts)**2]),
-                Phi)
+        if monitor:
+            monitor_time = perf_counter() - monitor_t0
+
+            return (-power/self.cost_scale,
+                    np.concatenate([gx/self.x_scale**2,
+                            rhs8re,
+                            rhs8im,
+                            gs/np.max(self.drafts)**2]),
+                    Phi, counter.niter, monitor_time, monitor_time_CG)
+        else:
+            # returns f, g, Phi
+            return (-power/self.cost_scale,
+                    np.concatenate([gx/self.x_scale**2,
+                            rhs8re,
+                            rhs8im,
+                            gs/np.max(self.drafts)**2]),
+                    Phi)

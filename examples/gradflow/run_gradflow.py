@@ -76,6 +76,7 @@ if method=='RK12':
     else:
         RK_atol = conf['numerics'].getfloat('RK_atol')
         RK_rtol = conf['numerics'].getfloat('RK_rtol')
+monitor = conf['numerics'].getboolean('monitor')
 
 ######################### DOMAIN SETUP #########################
 # Read vertex file
@@ -148,16 +149,22 @@ w0 = flowmap.initial_state_and_global_scalings(x0, y0, gen_damping, gen_stiffnes
 
 # Time stepping
 if method=='RK12':
-    tvec, Wvec, fhist, ghist = eeheun(w0, flowmap, stop_tol,
+    result = eeheun(w0, flowmap, stop_tol,
                                       Tmax=Tfin, dt_0=dt_0,
                                       order=1, adapt_tol=adapt_RK_tol,
-                                      atol=RK_atol, rtol=RK_rtol)
+                                      atol=RK_atol, rtol=RK_rtol,
+                                      monitor=monitor)
 elif method=='EE':
-    tvec, Wvec, fhist, ghist = euler(w0, flowmap, stop_tol,
-                                      Tmax=Tfin, dt_0=dt_0)
+    result = euler(w0, flowmap, stop_tol,
+                                      Tmax=Tfin, dt_0=dt_0,
+                                      monitor=monitor)
 else:
     raise ValueError('Time stepping method can be either RK12 or EE')
 
+if monitor:
+    tvec, Wvec, fhist, ghist, monitordict = result
+else:
+    tvec, Wvec, fhist, ghist = result
 
 # Save data
 xhist = []
@@ -171,6 +178,15 @@ for ii in range(len(tvec)):
     chist.append(c)
     khist.append(k)
 
-np.savez(run_name, vertices=vertices, t=tvec, xhist=xhist, yhist=yhist,
+
+if monitor:
+    np.savez(run_name, vertices=vertices, t=tvec, xhist=xhist, yhist=yhist,
+             chist=chist, khist=khist, fhist=fhist, ghist=ghist,
+             fscale=flowmap.cost_scale, monitor_tvec=monitordict['tvec'],
+             monitor_timetotvec=monitordict['time_totvec'],
+             monitor_timeCGvec=monitordict['time_CGvec'],
+             monitor_CGitervec=monitordict['CGitervec'])
+else:
+    np.savez(run_name, vertices=vertices, t=tvec, xhist=xhist, yhist=yhist,
          chist=chist, khist=khist, fhist=fhist, ghist=ghist,
          fscale=flowmap.cost_scale)

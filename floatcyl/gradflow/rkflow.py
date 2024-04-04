@@ -3,8 +3,20 @@
 import numpy as np
 import sys
 
+def flowmap_call(flowmap, W, monitor=False, monitordict=None, t=None):
+    if monitor:
+        f0, g_vec_0, k1, CG_niter, monitor_time, monitor_time_CG = flowmap.compute_phi(W, monitor=monitor)
+        monitordict['tvec'].append(t)
+        monitordict['time_totvec'].append(monitor_time)
+        monitordict['time_CGvec'].append(monitor_time_CG)
+        monitordict['CGitervec'].append(CG_niter)
+        return f0, g_vec_0, k1
+    else:
+        return flowmap.compute_phi(W, monitor=monitor)
+
+
 def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
-           atol=1e-6, rtol=1e-3, adapt_tol=True):
+           atol=1e-6, rtol=1e-3, adapt_tol=True, monitor=False):
     """
     Explicit Euler/Heun adaptive time stepping
 
@@ -31,6 +43,8 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
         Whether to adapt the stepsize selection tolerance to the
         stopping criterion (default: True). If True, values
         of atol and rtol will be ignored.
+    monitor: boolean
+        Whether to save performance monitoring data (default: False)
 
     Returns
     -------
@@ -61,14 +75,26 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
     tvec = []
     fhist = []
     ghist = []
+    phinormvec = []
+    if monitor:
+        monitordict = {'tvec': [],
+                       'time_totvec': [],
+                       'time_CGvec': [],
+                       'CGitervec': []}
+    else:
+        monitordict = None
 
-    f0, g_vec_0, k1 = flowmap.compute_phi(W)
+    f0, g_vec_0, k1 = flowmap_call(flowmap, W, monitor=monitor,
+                                    monitordict=monitordict, t=t)
+
 
     while t<Tmax and stop_crit>stop_tol:
         # output to log file now (don't wait)
         sys.stdout.flush()
         print('t = ', t)
-        f, g_vec, k2 = flowmap.compute_phi(W + dt*k1)
+        #f, g_vec, k2 = flowmap.compute_phi(W + dt*k1, monitor=monitor)
+        f, g_vec, k2 = flowmap_call(flowmap, W + dt*k1, monitor=monitor,
+                                        monitordict=monitordict, t=t)
 
         W_EE = W + dt * k1 # Explicit Euler step
         W_H = W + 0.5 * dt * (k1 + k2) # Heun step
@@ -96,7 +122,9 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
                 k1 = k2
             elif order == 2: # for order 2 method with 2 evaluations per step
                 W = W_H
-                f, g_vec, k1 = flowmap.compute_phi(W)
+                #f, g_vec, k1 = flowmap.compute_phi(W)
+                f, g_vec, k1 = flowmap_call(flowmap, W, monitor=monitor,
+                                                monitordict=monitordict, t=t)
 
             normgvec = np.linalg.norm(g_vec, ord=2)
             Wvec.append(W)
@@ -104,6 +132,7 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
             fhist.append(f)
             ghist.append(normgvec)
             stop_crit = np.linalg.norm(k1)
+            phinormvec.append(stop_crit)
 
             print('\nTime ', t)
             print('Cost = ', f, ', constraint norm = ', ghist[-1])
@@ -111,7 +140,10 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
         else:
             print('Stepsize rejected')
 
-    return tvec, Wvec, fhist, ghist
+    if monitor:
+        return tvec, Wvec, fhist, ghist, monitordict
+    else:
+        return tvec, Wvec, fhist, ghist
 
 
 def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
@@ -141,14 +173,23 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
     tvec = []
     fhist = []
     ghist = []
-
+    phinormvec = []
+    if monitor:
+        monitordict = {'tvec': [],
+                       'time_totvec': [],
+                       'time_CGvec': [],
+                       'CGitervec': []}
+    else:
+        monitordict = None
 
     while t<Tmax and stop_crit>stop_tol:
         # output to log file now (don't wait)
         sys.stdout.flush()
         dt = dt_0
 
-        f0, g_vec0, phi = flowmap.compute_phi(W)
+        #f0, g_vec0, phi = flowmap.compute_phi(W)
+        f0, g_vec0, phi = flowmap_call(flowmap, W, monitor=monitor,
+                                        monitordict=monitordict, t=t)
         W = W + dt * phi # Explicit Euler step
 
         normgvec = np.linalg.norm(g_vec0, ord=2)
@@ -157,6 +198,7 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
         fhist.append(f0)
         ghist.append(normgvec)
         stop_crit = np.linalg.norm(phi)
+        phinormvec.append(stopcrit)
 
         print('\nTime ', t)
         print('Cost = ', f0, ', constraint norm = ', ghist[-1])
@@ -164,4 +206,7 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
 
         t += dt
 
-    return tvec, Wvec, fhist, ghist
+    if monitor:
+        return tvec, Wvec, fhist, ghist, monitordict
+    else:
+        return tvec, Wvec, fhist, ghist
