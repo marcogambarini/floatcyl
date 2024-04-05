@@ -91,7 +91,6 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
     while t<Tmax and stop_crit>stop_tol:
         # output to log file now (don't wait)
         sys.stdout.flush()
-        print('t = ', t)
         #f, g_vec, k2 = flowmap.compute_phi(W + dt*k1, monitor=monitor)
         f, g_vec, k2 = flowmap_call(flowmap, W + dt*k1, monitor=monitor,
                                         monitordict=monitordict, t=t)
@@ -141,7 +140,7 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
             print('Stepsize rejected')
 
     if monitor:
-        return tvec, Wvec, fhist, ghist, monitordict
+        return tvec, Wvec, fhist, ghist, monitordict, phinormvec
     else:
         return tvec, Wvec, fhist, ghist
 
@@ -207,6 +206,6 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
         t += dt
 
     if monitor:
-        return tvec, Wvec, fhist, ghist, monitordict
+        return tvec, Wvec, fhist, ghist, monitordict, phinormvec
     else:
         return tvec, Wvec, fhist, ghist

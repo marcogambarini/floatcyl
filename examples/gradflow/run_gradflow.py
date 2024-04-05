@@ -8,6 +8,7 @@ from floatcyl.gradflow.random_pos import random_in_square
 from floatcyl.gradflow.constr_jac import PolyConstraint
 from floatcyl.gradflow.flowmap import Flowmap
 from floatcyl.gradflow.rkflow import *
+import sys
 
 #################### READ PARAMETER FILE ####################
 class StrictConfigParser(configparser.RawConfigParser):
@@ -50,12 +51,25 @@ save_pvd = conf['array'].getboolean('save_pvd')
 projmethod = conf['array'].get('projmethod')
 nu = conf['array'].getfloat('nu')
 
-Te = conf['waves'].getfloat('Te')
-Hs = conf['waves'].getfloat('Hs')
+spectrum_from_file = conf['waves'].getboolean('spectrum_from_file')
+if spectrum_from_file:
+    spectrum_file = conf['waves'].get('spectrum_file')
+    wave_data = np.load(spectrum_file)
+    Hvec = 2*wave_data['amplitude'] # significant wave heights
+    omegavec = wave_data['omega']
+    beta = 0.
+    Nf = len(omegavec) # number of frequencies (spectral components)
+else:
+    Te = conf['waves'].getfloat('Te')
+    Hs = conf['waves'].getfloat('Hs')
+    thres = conf['waves'].getfloat('thres')
+    Nf = conf['waves'].getint('Nf')
+    crit = conf['waves'].get('crit')
+    omegavec, amplitude = fcl.utils.utils.discrete_PM_spectrum(
+                                Te, Hs, Nf, filename=None, thres=thres,
+                                plot=False, crit=crit)
+    Hvec = 2*amplitude
 beta = conf['waves'].getfloat('beta') # in degrees
-thres = conf['waves'].getfloat('thres')
-Nf = conf['waves'].getint('Nf')
-crit = conf['waves'].get('crit')
 
 Nn = conf['numerics'].getint('Nn')
 Nq = conf['numerics'].getint('Nq')
@@ -103,11 +117,10 @@ domain_constr = PolyConstraint(vertices, meshFileName=run_name,
                  projmethod=projmethod, nu=nu)
 print('Done')
 
-######################## SPECTRUM SETUP ########################
-omegavec, amplitude = fcl.utils.utils.discrete_PM_spectrum(
-                            Te, Hs, Nf, filename=None, thres=thres,
-                            plot=False, crit=crit)
-Hvec = 2*amplitude
+####################### SPECTRUM PRINTOUT ######################
+print('omegavec = ', omegavec)
+print('Hvec = ', Hvec)
+
 
 ######################### SOLVER SETUP #########################
 wavenum = []
@@ -140,6 +153,8 @@ for ii in range(Nf):
 
     print('Finished array initialization')
 
+    sys.stdout.flush()
+
 
 ###################### GRADIENT FLOW RUN #######################
 # Initialize flowmap
@@ -147,6 +162,7 @@ flowmap = Flowmap(cylArrays, domain_constr, alpha_slam, min_dist,
                     adapt_tol=adapt_CG_tol, cg_tol=CG_tol)
 w0 = flowmap.initial_state_and_global_scalings(x0, y0, gen_damping, gen_stiffness)
 
+print('\nStarting time-stepping\n')
 # Time stepping
 if method=='RK12':
     result = eeheun(w0, flowmap, stop_tol,
@@ -162,7 +178,7 @@ else:
     raise ValueError('Time stepping method can be either RK12 or EE')
 
 if monitor:
-    tvec, Wvec, fhist, ghist, monitordict = result
+    tvec, Wvec, fhist, ghist, monitordict, phinormvec = result
 else:
     tvec, Wvec, fhist, ghist = result
 
@@ -182,7 +198,8 @@ for ii in range(len(tvec)):
 if monitor:
     np.savez(run_name, vertices=vertices, t=tvec, xhist=xhist, yhist=yhist,
              chist=chist, khist=khist, fhist=fhist, ghist=ghist,
-             fscale=flowmap.cost_scale, monitor_tvec=monitordict['tvec'],
+             fscale=flowmap.cost_scale, phinormvec=phinormvec,
+             monitor_tvec=monitordict['tvec'],
              monitor_timetotvec=monitordict['time_totvec'],
              monitor_timeCGvec=monitordict['time_CGvec'],
              monitor_CGitervec=monitordict['CGitervec'])

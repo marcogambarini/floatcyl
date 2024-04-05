@@ -9,7 +9,7 @@ try:
 except:
     pass
 
-fileName = 'test1.npz'
+fileName = 'test5/test5.npz'
 
 data = np.load(fileName, allow_pickle=True)
 t = data['t']
@@ -20,6 +20,7 @@ c = data['chist']
 f = data['fhist']
 g = data['ghist']
 vertices = data['vertices']
+phinormvec = data['phinormvec']
 
 monitor_tvec = data['monitor_tvec']
 monitor_timetotvec = data['monitor_timetotvec']
@@ -111,5 +112,8 @@ fig, ax = plt.subplots(2, 1)
 ax[0].plot(monitor_tvec, monitor_timetotvec)
 ax[0].plot(monitor_tvec, monitor_timeCGvec)
 ax[1].plot(monitor_tvec, monitor_CGitervec)
+
+fig, ax = plt.subplots()
+ax.semilogy(t, phinormvec)
 
 plt.show()
