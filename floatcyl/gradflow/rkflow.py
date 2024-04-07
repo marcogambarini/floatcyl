@@ -199,7 +199,7 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, monitor=False):
         fhist.append(f0)
         ghist.append(normgvec)
         stop_crit = np.linalg.norm(phi)
-        phinormvec.append(stopcrit)
+        phinormvec.append(stop_crit)
 
         print('\nTime ', t)
         print('Cost = ', f0, ', constraint norm = ', ghist[-1])
