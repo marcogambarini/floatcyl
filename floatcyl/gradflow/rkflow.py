@@ -69,7 +69,8 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
     dt = dt_0
     W = w0.copy()
 
-    atol = None
+    if adapt_tol:
+        atol = None
 
     Wvec = [W]
     tvec = []
