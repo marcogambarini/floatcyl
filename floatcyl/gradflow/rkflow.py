@@ -145,7 +145,7 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
         return tvec, Wvec, fhist, ghist
 
 
-def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
+def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, monitor=False):
     """
     Explicit Euler
 
@@ -161,6 +161,8 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9):
         Maximum final time (default: 1000)
     dt_0: float
         Tentative time step (default: 1.9)
+    monitor: boolean
+        Whether to save performance monitoring data (default: False)
     """
 
     stop_crit = 2*stop_tol
