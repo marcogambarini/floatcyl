@@ -11,6 +11,13 @@ from floatcyl.gradflow.rkflow import *
 import sys
 
 #################### READ PARAMETER FILE ####################
+
+# Get parameter file name as command line argument or set to default
+if len(sys.argv) > 0:
+    paramFileName = sys.argv[1]
+else:
+    paramFileName = 'params.ini'
+
 class StrictConfigParser(configparser.RawConfigParser):
     # config parser which raises exception instead of having fallbacks
     def get(self, section, option, raw=False, vars=None, fallback=None):
@@ -24,7 +31,7 @@ class StrictConfigParser(configparser.RawConfigParser):
 
 
 conf = StrictConfigParser()
-conf.read('params.ini')
+conf.read(paramFileName)
 
 run_name = conf['rundata'].get('run_name')
 
