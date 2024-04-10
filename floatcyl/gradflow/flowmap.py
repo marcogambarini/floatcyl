@@ -594,11 +594,11 @@ class Flowmap(object):
         if monitor:
             monitor_t0_CG = perf_counter()
         if alpha_F==0:
-            lam, info = cg(A, rhs, x0=oldRestoreSol, callback=counter)
+            lam, info = cg(A, rhs, x0=oldRestoreSol, callback=counter, maxiter=2000)
             print(counter.niter, ' CG iterations')
             self.oldRestoreSol = lam
         else:
-            lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol)
+            lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol, maxiter=2000)
             print(counter.niter, ' CG iterations')
             self.oldSol = lam
         if monitor:
