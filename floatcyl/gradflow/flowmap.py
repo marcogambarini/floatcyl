@@ -606,6 +606,8 @@ class Flowmap(object):
 
         if info==0:
             print('successful CG iterations')
+        else:
+            raise RuntimeError('CG did not converge')
 
 
         ulam = mvre_JgT(lam)
