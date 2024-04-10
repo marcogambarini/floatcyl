@@ -14,7 +14,7 @@ class linsys_counter(object):
 
 class Flowmap(object):
     def __init__(self, cylArrays, domain_constr, alpha_slam, min_dist,
-            adapt_tol=False, cg_tol=1e-5):
+            adapt_tol=False, cg_tol=1e-5, cg_maxit=500):
         """
         Parameters
         ----------
@@ -31,6 +31,8 @@ class Flowmap(object):
             of norm(Phi)
         cg_tol: float
             Tolerance for CG. Ignored if adapt_tol is True
+        cg_maxit: integer
+            Maximum number of iterations of CG (default: 500)
         """
 
         self.cylArrays = cylArrays
@@ -72,6 +74,7 @@ class Flowmap(object):
             self.Phinorm = 1.
         else:
             self.cg_tol = cg_tol
+        self.cg_maxit = cg_maxit
 
 
 
@@ -296,7 +299,8 @@ class Flowmap(object):
         return (-power/self.cost_scale, g_vec)
 
 
-    def compute_phi(self, w, alpha_F=1, alpha_G=1, monitor=False):
+    def compute_phi(self, w, alpha_F=1, alpha_G=1, monitor=False,
+                    stop_if_nonconv_CG=False):
         """
         Computes cost and constraint functions with constant scaling
         (so that they can be compared between iterations), same as in compute_f_g,
@@ -315,6 +319,10 @@ class Flowmap(object):
             Weight of the constraint restoration constribution (default: 1.)
         monitor: boolean
             Whether to save performance monitoring data (default: False)
+        stop_if_nonconv_CG: boolean
+            If True, raises an error if CG does not converge within the maximum
+            prescribed number of iterations. If False, returns the additional value
+            CG_conv
 
         Returns
         -------
@@ -324,6 +332,8 @@ class Flowmap(object):
             Vector of nondimensional constraint functions
         Phi: array
             Gradient flow direction
+        CG_conv: integer
+            0 if CG has converged, 1 otherwise. Only returned if stop_if_nonconv_CG=True
         """
         if monitor:
             monitor_t0 = perf_counter()
@@ -594,11 +604,11 @@ class Flowmap(object):
         if monitor:
             monitor_t0_CG = perf_counter()
         if alpha_F==0:
-            lam, info = cg(A, rhs, x0=oldRestoreSol, callback=counter, maxiter=2000)
+            lam, info = cg(A, rhs, x0=oldRestoreSol, callback=counter, maxiter=self.cg_maxit)
             print(counter.niter, ' CG iterations')
             self.oldRestoreSol = lam
         else:
-            lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol, maxiter=2000)
+            lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol, maxiter=self.cg_maxit)
             print(counter.niter, ' CG iterations')
             self.oldSol = lam
         if monitor:
@@ -607,7 +617,8 @@ class Flowmap(object):
         if info==0:
             print('successful CG iterations')
         else:
-            raise RuntimeError('CG did not converge')
+            if stop_if_nonconv_CG:
+                raise RuntimeError('CG did not converge')
 
 
         ulam = mvre_JgT(lam)
@@ -621,20 +632,18 @@ class Flowmap(object):
             self.pinvJgnorm = np.linalg.norm(ulam)/np.linalg.norm(rhs)
             self.Phinorm = np.linalg.norm(Phi)
 
-        if monitor:
-            monitor_time = perf_counter() - monitor_t0
-
-            return (-power/self.cost_scale,
-                    np.concatenate([gx/self.x_scale**2,
-                            rhs8re,
-                            rhs8im,
-                            gs/np.max(self.drafts)**2]),
-                    Phi, counter.niter, monitor_time, monitor_time_CG)
-        else:
-            # returns f, g, Phi
-            return (-power/self.cost_scale,
+        return_values = (-power/self.cost_scale,
                     np.concatenate([gx/self.x_scale**2,
                             rhs8re,
                             rhs8im,
                             gs/np.max(self.drafts)**2]),
                     Phi)
+
+        if not stop_if_nonconv_CG:
+            return_values = return_values + (info,)
+
+        if monitor:
+            monitor_time = perf_counter() - monitor_t0
+            return_values = return_values + (counter.niter, monitor_time, monitor_time_CG)
+
+        return return_values

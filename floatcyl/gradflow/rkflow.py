@@ -3,16 +3,24 @@
 import numpy as np
 import sys
 
-def flowmap_call(flowmap, W, monitor=False, monitordict=None, t=None):
+def flowmap_call(flowmap, W, monitor=False, monitordict=None, t=None,
+                 stop_if_nonconv_CG=False):
     if monitor:
-        f0, g_vec_0, k1, CG_niter, monitor_time, monitor_time_CG = flowmap.compute_phi(W, monitor=monitor)
+        flowmap_result = flowmap.compute_phi(W, monitor=monitor,
+                                stop_if_nonconv_CG=stop_if_nonconv_CG)
+        if stop_if_nonconv_CG:
+            f0, g_vec_0, k1, CG_niter, monitor_time, monitor_time_CG = flowmap_result
+            return_values = f0, g_vec_0, k1
+        else:
+            f0, g_vec_0, k1, CG_info, CG_niter, monitor_time, monitor_time_CG = flowmap_result
+            return_values = f0, g_vec_0, k1, CG_info
         monitordict['tvec'].append(t)
         monitordict['time_totvec'].append(monitor_time)
         monitordict['time_CGvec'].append(monitor_time_CG)
         monitordict['CGitervec'].append(CG_niter)
-        return f0, g_vec_0, k1
+        return return_values
     else:
-        return flowmap.compute_phi(W, monitor=monitor)
+        return flowmap.compute_phi(W, monitor=monitor, stop_if_nonconv_CG=stop_if_nonconv_CG)
 
 
 def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
@@ -86,15 +94,24 @@ def eeheun(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, order=1,
         monitordict = None
 
     f0, g_vec_0, k1 = flowmap_call(flowmap, W, monitor=monitor,
-                                    monitordict=monitordict, t=t)
+                                    monitordict=monitordict, t=t,
+                                    stop_if_nonconv_CG=True)
 
 
     while t<Tmax and stop_crit>stop_tol:
         # output to log file now (don't wait)
         sys.stdout.flush()
         #f, g_vec, k2 = flowmap.compute_phi(W + dt*k1, monitor=monitor)
-        f, g_vec, k2 = flowmap_call(flowmap, W + dt*k1, monitor=monitor,
-                                        monitordict=monitordict, t=t)
+        f, g_vec, k2, CG_info = flowmap_call(flowmap, W + dt*k1, monitor=monitor,
+                                        monitordict=monitordict, t=t,
+                                        stop_if_nonconv_CG=False)
+        # Reduce the time step if CG did not converge
+        while CG_info>0:
+            print('CG did not converge: reducing step size')
+            dt *= 0.5
+            f, g_vec, k2, CG_info = flowmap_call(flowmap, W + dt*k1, monitor=monitor,
+                                        monitordict=monitordict, t=t,
+                                        stop_if_nonconv_CG=False)
 
         W_EE = W + dt * k1 # Explicit Euler step
         W_H = W + 0.5 * dt * (k1 + k2) # Heun step
@@ -191,7 +208,8 @@ def euler(w0, flowmap, stop_tol, Tmax=1000, dt_0=1.9, monitor=False):
 
         #f0, g_vec0, phi = flowmap.compute_phi(W)
         f0, g_vec0, phi = flowmap_call(flowmap, W, monitor=monitor,
-                                        monitordict=monitordict, t=t)
+                                        monitordict=monitordict, t=t,
+                                        stop_if_nonconv_CG=True)
         W = W + dt * phi # Explicit Euler step
 
         normgvec = np.linalg.norm(g_vec0, ord=2)
