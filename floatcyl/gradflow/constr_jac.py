@@ -47,10 +47,11 @@ class PolyConstraint:
         """
 
         # Define a rectangle containing the polygon
-        barycenter = np.mean(vertices, axis=0)
+        bbox_barycenter = np.array([0.5*(np.min(vertices[:,0])+np.max(vertices[:,0])),
+                                    0.5*(np.min(vertices[:,1])+np.max(vertices[:,1]))])
         Lx, Ly = rect_factor * np.max(
-                    np.abs(vertices-barycenter), axis=0)
-        rect_vertices = barycenter + np.array(((-Lx, -Ly),
+                    np.abs(vertices-bbox_barycenter), axis=0)
+        rect_vertices = bbox_barycenter + np.array(((-Lx, -Ly),
                                                (-Lx,  Ly),
                                                ( Lx,  Ly),
                                                ( Lx, -Ly)))
