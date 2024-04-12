@@ -12,7 +12,7 @@ from .inoutpolygonmesh import PolygonHole
 class PolyConstraint:
     def __init__(self, vertices, meshFileName='rectpoly',
                  rect_factor=1.5, h_outer=0.2, h_inner=0.05,
-                 save_pvd=False, conds='dirneum',
+                 int_source=-1., save_pvd=False, conds='dirneum',
                  projmethod='CG', nu=0):
         """
         Solves the internal-external Poisson problem to compute the
@@ -32,6 +32,8 @@ class PolyConstraint:
             Mesh size at outer rectangle boundary (default: 0.2)
         h_inner: float
             Mesh size at inner polygon boundary (default: 0.05)
+        int_source: float
+            Source term for the internal problem
         save_pvd: boolean
             Whether to save the PDE solution as a pvd file (default: False)
         conds: string
@@ -70,6 +72,7 @@ class PolyConstraint:
         self.save_pvd = save_pvd
         self.nu = nu
         self.solve_fem_post()
+        self.int_source = int_source
 
 
 
@@ -100,7 +103,7 @@ class PolyConstraint:
         else:
             raise ValueError('conds can be either dirdir or dirneum')
 
-        f_int = fd.Constant(-1.)
+        f_int = fd.Constant(self.int_source)
 
         u = fd.TrialFunction(V)
         v = fd.TestFunction(V)
