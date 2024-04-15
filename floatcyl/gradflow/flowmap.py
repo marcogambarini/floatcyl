@@ -90,10 +90,12 @@ class Flowmap(object):
         ----------
         x0, y0: arrays
             Initial guess for coordinates of points
-        gen_damping: float
-            Initial guess for generator damping
-        gen_stiffness: float
+        gen_damping: float or array of floats
+            Initial guess for generator damping 
+            (if a single value is provided, it is assigned to all devices)
+        gen_stiffness: float or array of floats
             Initial guess for generator stiffness
+            (if a single value is provided, it is assigned to all devices)
 
         Returns
         -------
@@ -103,6 +105,11 @@ class Flowmap(object):
         Ncx, Nf, Nbodies = self.Ncx, self.Nf, self.Nbodies
         cylArrays, domain_constr = self.cylArrays, self.domain_constr
         alpha_slam, min_dist = self.alpha_slam, self.min_dist
+
+        if isinstance(gen_damping, float):
+            gen_damping = np.ones(Nbodies)*gen_damping
+        if isinstance(gen_stiffness, float):
+            gen_stiffness = np.ones(Nbodies)*gen_stiffness
 
         self.x_scale = max(np.max(np.abs(x0)), np.max(np.abs(y0)))
 
@@ -144,8 +151,8 @@ class Flowmap(object):
             s0z = np.ones(Nbodies)
         self.sz_scale = max(1., np.sqrt(np.max(-gs)))
 
-        self.damp_scale = self.stiff_scale = max(abs(gen_damping),
-                                                 abs(gen_stiffness))
+        self.damp_scale = self.stiff_scale = max(np.max(np.abs(gen_damping)),
+                                                 np.max(np.abs(gen_stiffness)))
         #print('scalings = ', self.x_scale, self.z_scale, self.damp_scale,
         #   self.stiff_scale, self.sx_overlap_scale, self.sx_domain_scale,
         #   self.sz_scale)
@@ -162,8 +169,8 @@ class Flowmap(object):
         # Scaled initial vector
         W0 = np.block([x0/self.x_scale, y0/self.x_scale,
                         np.concatenate([z0_vec[ii] for ii in range(Nf)])/self.z_scale,
-                        gen_damping*np.ones(Nbodies)/self.damp_scale,
-                        gen_stiffness*np.ones(Nbodies)/self.stiff_scale,
+                        gen_damping/self.damp_scale,
+                        gen_stiffness/self.stiff_scale,
                         s0x_overlap/self.sx_overlap_scale,
                         s0x_domain/self.sx_domain_scale,
                         s0z/self.sz_scale])
