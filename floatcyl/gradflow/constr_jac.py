@@ -71,8 +71,10 @@ class PolyConstraint:
         self.projmethod = projmethod
         self.save_pvd = save_pvd
         self.nu = nu
-        self.solve_fem_post()
         self.int_source = int_source
+        
+        self.solve_fem_post()
+        
 
 
 
