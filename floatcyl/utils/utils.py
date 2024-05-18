@@ -90,7 +90,8 @@ def discrete_PM_spectrum(Te, Hs, Nbins, filename=None, thres=1e-3,
 
         if crit=='E': # all bins have same power density
             p_bin = (P_tot - P_negl)/Nbins #power per bin
-            bin_H = 2 * np.sqrt(2 * P_tot/Nbins) * np.ones(Nbins)
+            #bin_H = 2 * np.sqrt(2 * P_tot/Nbins) * np.ones(Nbins)
+            bin_H = 2 * np.sqrt(2 * p_bin) * np.ones(Nbins)
             last_Pcum = Pcumfun(bin_edges[0])
             for ii in range(Nbins):
                 bin_edges[ii+1] = invPcum(p_bin + last_Pcum)
@@ -104,13 +105,17 @@ def discrete_PM_spectrum(Te, Hs, Nbins, filename=None, thres=1e-3,
             Jcumfun = lambda x: Jconst * gammaincc(1.25, b/x**4)
             j_bin = (Jcumfun(f_R) - Jcumfun(f_L))/Nbins
             last_Jcum = Jcumfun(bin_edges[0])
+            last_Pcum = Pcumfun(bin_edges[0])
             # In this case, all bins have different powers
             for ii in range(Nbins):
                 bin_edges[ii+1] = (b/gammainccinv(1.25,
                                     (j_bin + last_Jcum)/Jconst))**0.25
                 Jcum = Jcumfun(bin_edges[ii+1])
                 fi = 0.5*(bin_edges[ii] + bin_edges[ii+1])
-                bin_H[ii] = 2 * np.sqrt(2 * fi * j_bin)
+                #bin_H[ii] = 2 * np.sqrt(2 * fi * j_bin)
+                P_cum = Pcumfun(bin_edges[ii+1])
+                bin_H[ii] = 2 * np.sqrt(2 * (P_cum - last_Pcum))
+                last_Pcum = P_cum
                 last_Jcum = Jcum
         else:
             raise ValueError('Criteria for spectrum disc can be F, E or J')
