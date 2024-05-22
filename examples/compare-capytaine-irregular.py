@@ -70,7 +70,7 @@ x_cpt_mat = np.zeros((Nbins, Nbodies), dtype=complex)
 x_fcl_mat = np.zeros((Nbins, Nbodies), dtype=complex)
 
 slam_cpt_mat = np.zeros((Nbins, Nbodies))
-slam_flc_mat = np.zeros((Nbins, Nbodies))
+slam_fcl_mat = np.zeros((Nbins, Nbodies))
 
 for ii, omega in enumerate(omegavec):
 
@@ -148,7 +148,7 @@ for ii, omega in enumerate(omegavec):
     Z = -omega**2*(M + A) - 1j*omega*(B + np.diag(damp_vec)) + K + np.diag(stiff_vec)
     x_cpt = np.linalg.solve(Z.data[0,:,:], f.data[0,0,:])
 
-    etavec = ampvec * np.exp(1j*wavenum*(
+    etavec = ampvec[ii] * np.exp(1j*wavenum*(
                         np.cos(beta) * xb
                         + np.sin(beta) * yb
                     ))
@@ -176,4 +176,5 @@ for ii, omega in enumerate(omegavec):
 
 np.savez('compare-cpt-irregular.npz', P_cpt_mat=P_cpt_mat, P_fcl_mat=P_fcl_mat,
         slam_cpt_mat=slam_cpt_mat, slam_fcl_mat=slam_fcl_mat,
-        x_cpt_mat=x_cpt_mat, x_fcl_mat=x_fcl_mat)
+        x_cpt_mat=x_cpt_mat, x_fcl_mat=x_fcl_mat,
+	omegavec=omegavec)
