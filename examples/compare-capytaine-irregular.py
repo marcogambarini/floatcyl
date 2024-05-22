@@ -63,9 +63,14 @@ body_array = cyl.assemble_arbitrary_array(np.array((xb, yb)).T)
 Nbodies = len(xb)
 omegavec, ampvec = discrete_PM_spectrum(Te, Hs, Nbins, crit='F')
 
-P_cap_mat = np.zeros((Nbins, Nbodies))
+P_cpt_mat = np.zeros((Nbins, Nbodies))
 P_fcl_mat = np.zeros((Nbins, Nbodies))
 
+x_cpt_mat = np.zeros((Nbins, Nbodies), dtype=complex)
+x_fcl_mat = np.zeros((Nbins, Nbodies), dtype=complex)
+
+slam_cpt_mat = np.zeros((Nbins, Nbodies))
+slam_flc_mat = np.zeros((Nbins, Nbodies))
 
 for ii, omega in enumerate(omegavec):
 
@@ -89,14 +94,22 @@ for ii, omega in enumerate(omegavec):
     K = k * np.eye(len(xb))
 
     Z = -omega**2*(M + A) - 1j*omega*(B + np.diag(damp_vec)) + K + np.diag(stiff_vec)
-    x_cap = np.linalg.solve(Z.data[0,:,:], f.data[0,0,:])
+    x_cpt = np.linalg.solve(Z.data[0,:,:], f.data[0,0,:])
 
-    print('oscillation amplitude, Capytaine', x_cap)
-    print("phase = ", np.angle(x_cap)*180/np.pi, ' deg')
-    print('powers = ')
+    etavec = ampvec * np.exp(1j*wavenum*(
+                        np.cos(beta) * xb
+                        + np.sin(beta) * yb
+                    ))
+
+    print('Capytaine')
+    print('oscillation amplitude', x_cpt)
+    print('phase = ', np.angle(x_cpt)*180/np.pi, ' deg')
     for jj in range(Nbodies):
-        P_cap_mat[ii, jj] = 0.5*omega**2*ampvec[ii]**2*damp_vec[jj]*np.abs(x_cap[jj])**2
-        print(P_cap_mat[ii, jj])
+        P_cpt_mat[ii, jj] = 0.5*omega**2*ampvec[ii]**2*damp_vec[jj]*np.abs(x_cpt[jj])**2
+        slam_cpt_mat[ii, jj] = np.abs(ampvec[ii]*x_cpt[jj] - etavec[jj])**2
+        x_cpt_mat[ii, jj] = x_cpt[jj]
+    print('power = ', P_cpt_mat[ii])
+    print('slamming contribution = ', slam_cpt_mat[ii])
 
     del data
     del results
@@ -134,17 +147,27 @@ for ii, omega in enumerate(omegavec):
 
     x_fcl = np.array(cylArray.rao)[:, 0]
 
-    print("oscillation amplitude, Floatcyl = ", x_fcl)
-    print("phase = ", np.angle(x_fcl)*180/np.pi, ' deg')
-    print("powers = ")
+    etavec = 1j * ampvec[ii] * np.exp(1j*wavenum*(
+                        np.cos(beta) * xb
+                        + np.sin(beta) * yb
+                    ))
+
+    print('Floatcyl')
+    print('oscillation amplitude = ', x_fcl)
+    print('phase = ', np.angle(x_fcl)*180/np.pi, ' deg')
     for jj in range(Nbodies):
         P_fcl_mat[ii, jj] = 0.5*omega**2*ampvec[ii]**2*damp_vec[jj]*np.abs(x_fcl[jj])**2
-        print(P_fcl_mat[ii, jj])
+        slam_fcl_mat[ii, jj] = np.abs(ampvec[ii]*x_fcl[jj] - etavec[jj])**2
+        x_fcl_mat[ii, jj] = x_fcl[jj]
+    print('power = ', P_fcl_mat[ii])
+    print('slamming contribution = ', slam_fcl_mat[ii])
 
     ######################## COMPARISON #######################
-    amp_diff = (np.abs(x_fcl) - np.abs(x_cap))/(np.abs(x_cap))
+    amp_diff = (np.abs(x_fcl) - np.abs(x_cpt))/(np.abs(x_cpt))
     print('amplitude difference = ', amp_diff*100, ' %')
-    phase_diff = (np.angle(x_fcl) - np.angle(x_cap)) * 180/np.pi
+    phase_diff = (np.angle(x_fcl) - np.angle(x_cpt)) * 180/np.pi
     print('phase difference = ', phase_diff, 'deg')
 
-np.savez('compare-cpt-irregular.npz', P_cpt_mat=P_cpt_mat, P_fcl_mat=P_fcl_mat)
+np.savez('compare-cpt-irregular.npz', P_cpt_mat=P_cpt_mat, P_fcl_mat=P_fcl_mat,
+        slam_cpt_mat=slam_cpt_mat, slam_fcl_mat=slam_fcl_mat,
+        x_cpt_mat=x_cpt_mat, x_fcl_mat=x_fcl_mat)
