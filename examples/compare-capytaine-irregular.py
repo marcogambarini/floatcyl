@@ -77,43 +77,6 @@ for ii, omega in enumerate(omegavec):
 
     print('\n--------------------------------\nii=', ii,', omega = ', omega)
 
-    problems = [cpt.RadiationProblem(body=body_array, radiating_dof=dof,
-                            omega=omega, sea_bottom=-depth) for dof in body_array.dofs]
-    problems += [cpt.DiffractionProblem(body=body_array, wave_direction=beta,
-                            omega=omega, sea_bottom=-depth)]
-
-    # Solves the problem
-    solver = cpt.BEMSolver()
-    results = solver.solve_all(problems)
-    data = cpt.assemble_dataset(results)
-
-    A = data['added_mass']
-    B = data['radiation_damping']
-    f = data['diffraction_force'] + data['Froude_Krylov_force']
-    M = m * np.eye(len(xb))
-    K = k * np.eye(len(xb))
-
-    Z = -omega**2*(M + A) - 1j*omega*(B + np.diag(damp_vec)) + K + np.diag(stiff_vec)
-    x_cpt = np.linalg.solve(Z.data[0,:,:], f.data[0,0,:])
-
-    etavec = ampvec * np.exp(1j*wavenum*(
-                        np.cos(beta) * xb
-                        + np.sin(beta) * yb
-                    ))
-
-    print('Capytaine')
-    print('oscillation amplitude', x_cpt)
-    print('phase = ', np.angle(x_cpt)*180/np.pi, ' deg')
-    for jj in range(Nbodies):
-        P_cpt_mat[ii, jj] = 0.5*omega**2*ampvec[ii]**2*damp_vec[jj]*np.abs(x_cpt[jj])**2
-        slam_cpt_mat[ii, jj] = np.abs(ampvec[ii]*x_cpt[jj] - etavec[jj])**2
-        x_cpt_mat[ii, jj] = x_cpt[jj]
-    print('power = ', P_cpt_mat[ii])
-    print('slamming contribution = ', slam_cpt_mat[ii])
-
-    del data
-    del results
-
     ################## FLOATCYL SOLUTION ##################
 
     # 1) Dispersion relation
@@ -161,6 +124,49 @@ for ii, omega in enumerate(omegavec):
         x_fcl_mat[ii, jj] = x_fcl[jj]
     print('power = ', P_fcl_mat[ii])
     print('slamming contribution = ', slam_fcl_mat[ii])
+
+    del cylArray
+
+    ################## CAPYTAINE SOLUTION ##################
+
+    problems = [cpt.RadiationProblem(body=body_array, radiating_dof=dof,
+                            omega=omega, sea_bottom=-depth) for dof in body_array.dofs]
+    problems += [cpt.DiffractionProblem(body=body_array, wave_direction=beta,
+                            omega=omega, sea_bottom=-depth)]
+
+    # Solves the problem
+    solver = cpt.BEMSolver()
+    results = solver.solve_all(problems)
+    data = cpt.assemble_dataset(results)
+
+    A = data['added_mass']
+    B = data['radiation_damping']
+    f = data['diffraction_force'] + data['Froude_Krylov_force']
+    M = m * np.eye(len(xb))
+    K = k * np.eye(len(xb))
+
+    Z = -omega**2*(M + A) - 1j*omega*(B + np.diag(damp_vec)) + K + np.diag(stiff_vec)
+    x_cpt = np.linalg.solve(Z.data[0,:,:], f.data[0,0,:])
+
+    etavec = ampvec * np.exp(1j*wavenum*(
+                        np.cos(beta) * xb
+                        + np.sin(beta) * yb
+                    ))
+
+    print('Capytaine')
+    print('oscillation amplitude', x_cpt)
+    print('phase = ', np.angle(x_cpt)*180/np.pi, ' deg')
+    for jj in range(Nbodies):
+        P_cpt_mat[ii, jj] = 0.5*omega**2*ampvec[ii]**2*damp_vec[jj]*np.abs(x_cpt[jj])**2
+        slam_cpt_mat[ii, jj] = np.abs(ampvec[ii]*x_cpt[jj] - etavec[jj])**2
+        x_cpt_mat[ii, jj] = x_cpt[jj]
+    print('power = ', P_cpt_mat[ii])
+    print('slamming contribution = ', slam_cpt_mat[ii])
+
+    del data
+    del results
+
+
 
     ######################## COMPARISON #######################
     amp_diff = (np.abs(x_fcl) - np.abs(x_cpt))/(np.abs(x_cpt))
