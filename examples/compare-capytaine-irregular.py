@@ -55,7 +55,7 @@ stiff_vec = np.array([-22446.1261122, -23124.71426704, -28484.59998492, -25594.8
  -35706.24515876, -30068.97704285, -26228.40236788])
 
 cyl = cpt.VerticalCylinder(length=2*draft, radius=r,
-                            nx=10, nr=10, ntheta=50)
+                            nx=10, nr=10, ntheta=30)
 cyl.keep_immersed_part()
 cyl.add_translation_dof(name='Heave')
 body_array = cyl.assemble_arbitrary_array(np.array((xb, yb)).T)
@@ -97,6 +97,9 @@ for ii, omega in enumerate(omegavec):
     for jj in range(Nbodies):
         P_cap_mat[ii, jj] = 0.5*omega**2*ampvec[ii]**2*damp_vec[jj]*np.abs(x_cap[jj])**2
         print(P_cap_mat[ii, jj])
+
+    del data
+    del results
 
     ################## FLOATCYL SOLUTION ##################
 
