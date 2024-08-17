@@ -69,7 +69,7 @@ class Flowmap(object):
         self.cg_tol = None
         self.adapt_tol = adapt_tol
         if adapt_tol:
-            # Initialization ofstimate of the pseudoinverse norm and Phi norm
+            # Initialization of estimate of the pseudoinverse norm and Phi norm
             self.pinvJgnorm = 1.
             self.Phinorm = 1.
         else:
@@ -91,7 +91,7 @@ class Flowmap(object):
         x0, y0: arrays
             Initial guess for coordinates of points
         gen_damping: float or array of floats
-            Initial guess for generator damping 
+            Initial guess for generator damping
             (if a single value is provided, it is assigned to all devices)
         gen_stiffness: float or array of floats
             Initial guess for generator stiffness
@@ -615,7 +615,8 @@ class Flowmap(object):
             print(counter.niter, ' CG iterations')
             self.oldRestoreSol = lam
         else:
-            lam, info = cg(A, rhs, x0=oldSol, callback=counter, tol=self.cg_tol, maxiter=self.cg_maxit)
+            lam, info = cg(A, rhs, x0=oldSol, callback=counter,
+                atol=self.cg_tol, rtol=0, maxiter=self.cg_maxit)
             print(counter.niter, ' CG iterations')
             self.oldSol = lam
         if monitor:
