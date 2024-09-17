@@ -19,7 +19,7 @@ import sphinx_rtd_theme
 # -- Project information -----------------------------------------------------
 
 project = 'floatcyl'
-copyright = '2021, Marco Gambarini'
+copyright = '2021-2024, Marco Gambarini'
 author = 'Marco Gambarini'
 
 # The full version, including alpha/beta/rc tags
@@ -34,9 +34,11 @@ release = '0.1'
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.coverage',
               'sphinx.ext.napoleon',
+              'sphinx.ext.autosummary',
               'sphinx_rtd_theme',
               'myst_parser'
               ]
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -63,3 +65,4 @@ html_static_path = ['_static']
 
 #Ensure __init__ is documented for classes
 autoclass_content = 'both'
+numpydoc_show_class_members = False
