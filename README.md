@@ -29,5 +29,5 @@ Before installing floatcyl and every time the gradflow tools of floatcyl are use
 It is convenient to create an alias for activating the Firedrake virtual environment: this can be done by adding `alias sourceFiredrake='source ~/firedrake/bin/activate'` to your .bashrc file.
 
 The examples in the gradflow folder allow reproducing the results of [4]. Subdirectories square and cutsquare contain `run_tests.sh`, which
-uses the parameters of configuration (.ini) files. Plots and tables can be produced using `run_plots.sh` and `make-table.py`. 
+uses the parameters of configuration (.ini) files. Plots and tables can be produced using `run_plots.sh` and `make-table.py`. Tests were run with Python 3.10.12.
 
