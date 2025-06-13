@@ -22,9 +22,12 @@ This requires `sphinx`, `sphinx_rtd_theme` and `myst_parser`, which can be insta
 An already built documentation is available at <https://marcogambarini.github.io/>.
 
 Importing floatcyl automatically imports the hydrodynamic solver, together with the functions for computing gradients, but not the gradient flow submodule.
-The latter can be imported as `import floatcyl.gradflow` and it requires the installation of Firedrake and gmsh.
-It is recommended to install Firedrake inside a virtual environment, as indicated in https://www.firedrakeproject.org/download.html.
-Before installing floatcyl and everytime the gradflow tools of floatcyl are used, activate the Firedrake virtual environment.
+The latter can be imported as `import floatcyl.gradflow` and it requires the installation of Firedrake and gmsh:
+- It is recommended to install Firedrake inside a virtual environment, as indicated in <https://www.firedrakeproject.org/download.html>.
+- gmsh for Python can be installed following <https://pypi.org/project/gmsh/>.
+Before installing floatcyl and everytime the gradflow tools of floatcyl are used, activate the Firedrake virtual environment. 
+It is convenient to create an alias for activating the Firedrake virtual environment: this can be don by adding `alias sourceFiredrake='source ~/firedrake/bin/activate'` to your .bashrc file.
 
-The examples in the gradflow folder allow reproducing the results of [4].
+The examples in the gradflow folder allow reproducing the results of [4]. Subdirectories square and cutsquare contain `run_tests.sh`, which
+uses the parameters of configuration (.ini) files. Plots and tables can be produced using `run_plots.sh` and `make-table.py`. 
 
