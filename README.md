@@ -25,6 +25,7 @@ Importing floatcyl automatically imports the hydrodynamic solver, together with 
 The latter can be imported as `import floatcyl.gradflow` and it requires the installation of Firedrake and gmsh:
 - It is recommended to install Firedrake inside a virtual environment, as indicated in <https://www.firedrakeproject.org/download.html>.
 - gmsh for Python can be installed following <https://pypi.org/project/gmsh/>.
+
 Before installing floatcyl and every time the gradflow tools of floatcyl are used, activate the Firedrake virtual environment. 
 It is convenient to create an alias for activating the Firedrake virtual environment: this can be done by adding `alias sourceFiredrake='source ~/firedrake/bin/activate'` to your .bashrc file.
 
