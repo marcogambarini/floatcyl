@@ -18,6 +18,7 @@ This is installation for developers: if you update the code, you will immediatel
 To see the documentation, enter folder docs and run
 `make html`.
 A file index.html will appear in docs/build.
+This requires `sphinx`, `sphinx_rtd_theme` and `myst_parser`, which can be installed with `pip`.
 
 Importing floatcyl automatically imports the hydrodynamic solver, together with the functions for computing gradients, but not the gradient flow submodule.
 The latter can be imported as `import floatcyl.gradflow` and it requires the installation of Firedrake and gmsh.
