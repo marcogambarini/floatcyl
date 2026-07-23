@@ -28,7 +28,7 @@ def real_disp_rel(omega, depth, g=9.81):
     x0 = omega/np.sqrt(g*depth)
     k = fsolve(disp_rel, x0)
 
-    return k
+    return k[0]
 
 
 def imag_disp_rel(omega, depth, N, g=9.81):

@@ -203,7 +203,7 @@ class Array(object):
                     M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij[ii, jj] @ (Btilde.T @ Y)).T)[0,:]
 
                     #elementwise filling of matrix M22
-                    M22[ii, jj] = 1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)
+                    M22[ii, jj] = (1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)).item()
 
         # Save blocks for use in optimization routines
         hh = np.block([[h1],[h2]])
@@ -355,7 +355,7 @@ class Array(object):
                         M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij @ Btilde.T @ Y).T)[0,:]
 
                         #elementwise filling of matrix M22
-                        M22[ii, jj] = 1/W * R.T @ Tij @ Btilde.T @ Y
+                        M22[ii, jj] = (1/W * R.T @ Tij @ Btilde.T @ Y).item()
 
             # Save blocks for use in optimization routines
             self.M11 = M11
@@ -419,7 +419,7 @@ class Array(object):
                         M21[ii, jj*Nnq:(jj+1)*Nnq] = (1/W * (Tij[ii, jj] @ (Btilde.T @ Y)).T)[0,:]
 
                         #elementwise filling of matrix M22
-                        M22[ii, jj] = 1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)
+                        M22[ii, jj] = (1/W * (R.T @ Tij[ii, jj]) @ (Btilde.T @ Y)).item()
 
             # Save blocks for use in optimization routines
 
@@ -969,14 +969,14 @@ class Array(object):
             b = bodies[ii].torque_coeff
             if OWC:
                 for jj in range(len(b)):
-                    P_individual[ii] += b[jj] * omega**(2*jj) * (np.abs(rao[ii]))**(2*jj)
+                    P_individual[ii] += b[jj] * omega**(2*jj) * (np.abs(rao[ii]).item())**(2*jj)
             else:
                 if self.damping is not None:
                     P_individual[ii] = (
-                        0.5 * self.damping[ii] * omega**2 * np.abs(rao[ii])**2 )
+                        0.5 * self.damping[ii] * omega**2 * np.abs(rao[ii]).item()**2 )
                 else:
                     P_individual[ii] = (
-                        0.5 * bodies[ii].gamma * omega**2 * np.abs(rao[ii])**2 )
+                        0.5 * bodies[ii].gamma * omega**2 * np.abs(rao[ii]).item()**2 )
 
         if individual:
             return P_individual
@@ -1461,7 +1461,7 @@ class Array(object):
         positions of the bodies.
         Amended on 20/04/23 (TODO: document!)
         """
-        k = self.k[0]
+        k = self.k
         beta = self.beta
         Nbodies = self.Nbodies
         Nn = self.Nn
@@ -1577,14 +1577,14 @@ class Array(object):
 
                         temp_hyd_x[kk*Nnq:(kk+1)*Nnq] -= B @ (dT_dxi[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
                         temp_hyd_x[kk*Nnq:(kk+1)*Nnq] -= (B @ (dT_dxi[jj,kk].T @ R))[:,0] * rao[jj]
-                        temp_dyn_x[kk] -= (1/W * (dT_dxi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
-                        temp_dyn_x[kk] -= 1/W * (R.T @ dT_dxi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                        temp_dyn_x[kk] -= ((1/W * (dT_dxi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]).item()
+                        temp_dyn_x[kk] -= (1/W * (R.T @ dT_dxi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]).item()
 
                         ###
                         temp_hyd_y[kk*Nnq:(kk+1)*Nnq] -= B @ (dT_dyi[jj,kk].T @ A[jj*Nnq:(jj+1)*Nnq, 0])
                         temp_hyd_y[kk*Nnq:(kk+1)*Nnq] -= (B @ (dT_dyi[jj,kk].T @ R))[:,0] * rao[jj]
-                        temp_dyn_y[kk] -= (1/W * (dT_dyi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]
-                        temp_dyn_y[kk] -= 1/W * (R.T @ dT_dyi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]
+                        temp_dyn_y[kk] -= ((1/W * (dT_dyi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @ A[jj*Nnq:(jj+1)*Nnq]).item()
+                        temp_dyn_y[kk] -= (1/W * (R.T @ dT_dyi[jj,kk]) @ (Btilde.T @ Y) * rao[jj]).item()
 
                 #k-th column
                 for ii in range(Nbodies):
@@ -1597,14 +1597,14 @@ class Array(object):
 
                         temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dxi[kk,ii].T @ A[kk*Nnq:(kk+1)*Nnq, 0])
                         temp_hyd_x[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dxi[kk,ii].T @ R))[:,0] * rao[kk]
-                        temp_dyn_x[ii] += (1/W * (dT_dxi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[kk*Nnq:(kk+1)*Nnq]
-                        temp_dyn_x[ii] += 1/W * (R.T @ dT_dxi[kk,ii]) @ (Btilde.T @ Y) * rao[kk]
+                        temp_dyn_x[ii] += ((1/W * (dT_dxi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[kk*Nnq:(kk+1)*Nnq]).item()
+                        temp_dyn_x[ii] += (1/W * (R.T @ dT_dxi[kk,ii]) @ (Btilde.T @ Y) * rao[kk]).item()
 
                         ###
                         temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += B @ (dT_dyi[kk,ii].T @ A[kk*Nnq:(kk+1)*Nnq, 0])
                         temp_hyd_y[ii*Nnq:(ii+1)*Nnq] += (B @ (dT_dyi[kk,ii].T @ R))[:,0] * rao[kk]
-                        temp_dyn_y[ii] += (1/W * (dT_dyi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[kk*Nnq:(kk+1)*Nnq]
-                        temp_dyn_y[ii] += 1/W * (R.T @ dT_dyi[kk,ii]) @ (Btilde.T @ Y) * rao[kk]
+                        temp_dyn_y[ii] += ((1/W * (dT_dyi[kk,ii] @ (Btilde.T @ Y)).T)[0,:] @ A[kk*Nnq:(kk+1)*Nnq]).item()
+                        temp_dyn_y[ii] += (1/W * (R.T @ dT_dyi[kk,ii]) @ (Btilde.T @ Y) * rao[kk]).item()
 
                 gradJx[kk] = np.real(landa.conj().T @ (temp_hyd_x - dh1_dxi[kk][:,0])
                                 + mu.conj().T @ (temp_dyn_x - dh2_dxi[kk][:,0]))
@@ -1663,9 +1663,9 @@ class Array(object):
                 mv_temp_y[jj*Nnq:(jj+1)*Nnq, kk] = B @ (
                                 (rao[jj]*R + A[jj*Nnq:(jj+1)*Nnq, 0]).T @ dT_dyi[jj,kk]).T
                 mv_tempdyn_x[jj, kk] = (1/W * ((dT_dxi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @
-                                (rao[jj]*R + A[jj*Nnq:(jj+1)*Nnq, 0]))
+                                (rao[jj]*R + A[jj*Nnq:(jj+1)*Nnq, 0])).item()
                 mv_tempdyn_y[jj, kk] = (1/W * ((dT_dyi[jj,kk] @ (Btilde.T @ Y)).T)[0,:] @
-                                (rao[jj]*R + A[jj*Nnq:(jj+1)*Nnq, 0]))
+                                (rao[jj]*R + A[jj*Nnq:(jj+1)*Nnq, 0])).item()
 
         for kk in range(Nbodies):
             # temporary vectors for hydrodynamics and dynamics
@@ -1799,11 +1799,11 @@ class Array(object):
                     Tij = self.Tij[ii, jj]
                     R = self.bodies[jj].R
 
-                    jac[ii] -= Y.T@Btilde@Tij.T@A[jj*Nnq:(jj+1)*Nnq]
-                    jac[ii] -= (R.T@Tij@Btilde.T@Y)*rao[jj]
+                    jac[ii] -= (Y.T@Btilde@Tij.T@A[jj*Nnq:(jj+1)*Nnq]).item()
+                    jac[ii] -= ((R.T@Tij@Btilde.T@Y)*rao[jj]).item()
 
             # rhs contribution
-            jac[ii] -= inc_wave_coeffs.T@Btilde.T@Y
+            jac[ii] -= (inc_wave_coeffs.T@Btilde.T@Y).item()
             # common factor
             jac[ii] *= 1/W**2
 
@@ -1838,7 +1838,7 @@ class Array(object):
         DP = np.zeros(Nbodies)
 
         for ii in range(Nbodies):
-            DP[ii] = -0.5*omega**2 * np.abs(rao[ii])**2
+            DP[ii] = -0.5*omega**2 * np.abs(rao[ii]).item()**2
 
         jac = self.jac_imped()
         dL_dci = DP + omega/(rho*g) * np.real(mu.conj().T*jac)
