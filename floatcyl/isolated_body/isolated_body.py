@@ -162,7 +162,7 @@ class Cylinder(object):
         # W (forces for dynamic coupling)
         #equiv area is eq. (3.150)
         equiv_area = -1j * omega*omega*np.pi/(2*self.g*h) * (
-                    h*h*a*a - 0.25*a*a*a*a) + self.Rtilde.T@self.Y
+                    h*h*a*a - 0.25*a*a*a*a) + (self.Rtilde.T@self.Y).item()
         self.equiv_area = equiv_area
 
         #mass obtained from hydrostatic balance
@@ -346,7 +346,7 @@ class Cylinder(object):
         """
 
         k = self.k
-        kq = self.kq
+        kq = np.asarray(self.kq).reshape(-1)
         d = self.depth
         a = self.radius
         Nn = self.Nn
@@ -447,7 +447,7 @@ class Cylinder(object):
         """
 
         k = self.k
-        km = self.kq
+        km = np.asarray(self.kq).reshape(-1)
         a = self.radius
         Nn = self.Nn
 
@@ -528,7 +528,7 @@ class Cylinder(object):
         """
 
         k = self.k
-        kq = self.kq
+        kq = np.asarray(self.kq).reshape(-1)
         d = self.depth
         a = self.radius
         Nl = self.Nn
@@ -537,6 +537,7 @@ class Cylinder(object):
         sqrtN0 = np.sqrt(0.5*(1 + (np.sinh(2*k*d)) / (2*k*d) ))
         sqrtNq = np.sqrt(0.5*(1 + (np.sin(2*kq*d)) / (2*kq*d) ))
 
+        D = np.asarray(D).reshape(-1)
 
         R = np.zeros(((2*Nl + 1)*(Nq+1), 1), dtype=complex)
 
@@ -575,6 +576,8 @@ class Cylinder(object):
         Ns = self.Nq
 
         R = np.zeros(((2*Nl + 1)*(Ns+1), 1), dtype=complex)
+
+        C = np.asarray(C).reshape(-1)
 
         l = 0
         s = 0

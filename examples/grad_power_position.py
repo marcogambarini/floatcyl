@@ -54,7 +54,7 @@ rao = cylArray0.rao
 
 P_array0 = 0
 for ii in range(Nbodies):
-    P_array0 = P_array0 + np.abs(rao[ii])**2 * omega*omega /2 * H*H * body.gamma
+    P_array0 = P_array0 + np.abs(rao[ii]).item()**2 * omega*omega /2 * H*H * body.gamma
 J_0 = -P_array0
 
 print('Initial cost = ', J_0)
@@ -76,7 +76,7 @@ def compute_fd(x_h, y_h):
 
     P_array_h = 0
     for ii in range(Nbodies):
-        P_array_h = P_array_h + np.abs(rao[ii])**2 * omega*omega /2 * H*H * body.gamma
+        P_array_h = P_array_h + np.abs(rao[ii]).item()**2 * omega*omega /2 * H*H * body.gamma
     J_h = -P_array_h
 
     fd = (J_h - J_0)/h
