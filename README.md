@@ -1,16 +1,21 @@
 # floatcyl
 Implementation of wave interaction theory for floating cylinders and of gradient flow optimization tools.
 
-The code is based on the works
+The core hydrodynamic code is based on the works
 
 [1] O. Yilmaz, *Hydrodynamic interactions of waves with group of truncated vertical cylinders*, Journal of waterway, port, coastal, and ocean engineering, 1998
 
 [2] B. F. M. Child, *On the configuration of arrays of floating wave energy converters*, PhD Thesis, University of Edinburgh, 2011
 
+Optimization developments are described in
+
 [3] J. Gallizioli, *Optimization of WEC arrays: A new approach for the combined optimization of positions and damping coefficients*, MSc Thesis, Politecnico di Milano, 2022
 
-[4] M. Gambarini, G. Ciaramella, E. Miglio, *A gradient flow approach for combined layout-control design of wave energy parks*, preprint, 2024, <https://arxiv.org/abs/2409.10200>
+[4] M. Gambarini, G. Agate, G. Ciaramella, E. Miglio, S. Maran, *Modeling and optimization for arrays of water turbine OWC devices*, Ocean Engineering, 2024, doi: 10.1016/j.oceaneng.2024.119132.
 
+[5] M. Gambarini, G. Ciaramella, E. Miglio, *A gradient flow approach for combined layout-control design of wave energy parks*, SIAM Journal on Scientific Computing, 2026, doi: 10.1137/24M1694379. Preprint available at <https://arxiv.org/abs/2409.10200>.
+
+If you use this code for a publication, please cite [5].
 
 ## Installation notes
 ### Install only the hydrodynamic core
@@ -35,7 +40,7 @@ The latter can be imported as `import floatcyl.gradflow` and it requires the ins
 Before installing floatcyl and every time the gradflow tools of floatcyl are used, activate the virtual environment. 
 It is convenient to create an alias for activating the virtual environment: for example `alias pyfloatcyl='source ~/venv/floatcyl/bin/activate'` to your .bashrc file.
 
-The examples in the gradflow folder allow reproducing the results of [4]. Subdirectories square and cutsquare contain `run_tests.sh`, which
+The examples in the gradflow folder allow reproducing the results of [5]. Subdirectories square and cutsquare contain `run_tests.sh`, which
 uses the parameters of configuration (.ini) files. Plots and tables can be produced using `run_plots.sh` and `make-table.py`. 
 
 The set of libraries used to run the latest version (July 2026) is available at `requirements.txt`; tests were run with Python 3.12.3. It is not recommended to build the venv directly from this, because of the dependencies required by Firedrake. Follow the instructions above instead.
