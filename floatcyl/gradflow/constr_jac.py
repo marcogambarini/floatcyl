@@ -134,7 +134,7 @@ class PolyConstraint:
 
 
         if self.save_pvd:
-            outfile = fd.File(self.meshFileName + '.pvd')
+            outfile = fd.VTKFile(self.meshFileName + '.pvd')
             outfile.write(u_h, p_h)
 
         # Keep the solution as an attribute of the class
